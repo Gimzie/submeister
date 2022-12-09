@@ -38,10 +38,9 @@ async def stream_track(ctx, song_id: str) -> None:
     # Get the relevant voice channel & voice client
     channel = ctx.message.author.voice.channel
     client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-    print(client)
 
     # If not already in a voice channel, join the user's
-    if client == None:
+    if not ctx.guild.voice_client in bot.voice_clients:
         client = await channel.connect()
 
     # Stream from the Subsonic server, using the provided song ID
@@ -53,9 +52,12 @@ async def stream_track(ctx, song_id: str) -> None:
 
 
 
-@bot.command()
-async def play(ctx, query: str) -> None:
+@bot.command(name="play")
+async def play(ctx) -> None:
     ''' Play a track matching the given title/artist query '''
+
+    # Get the user's query
+    query = ctx.message.content[6:]
 
     # Use Search2 from the Subsonic API to search by keyword
     url = f"{SUB_SERVER}/rest/search2.view?query={query}&artistCount=1&songCount=1"
@@ -71,13 +73,20 @@ async def play(ctx, query: str) -> None:
         return
 
     # Stream the top-most track & inform the user
-    await stream_track(ctx, song_list[0]["id"]);
-    await ctx.send("Now playing: " + song_list[0]["title"] + " - *" + song_list[0]["artist"] + "*")
+    try:
+        await stream_track(ctx, song_list[0]["id"]);
+        await ctx.send("Now playing: " + song_list[0]["title"] + " - *" + song_list[0]["artist"] + "*")
+    except AttributeError:
+        await ctx.send("You have to be in a voice channel to play a song.")
+        return False
 
 
-@bot.command()
-async def search(ctx, query: str) -> None:
+@bot.command(name="search")
+async def search(ctx) -> None:
     ''' Search for tracks by the given title/artist & list them '''
+
+    # Get the user's query
+    query = ctx.message.content[8:]
 
     # Use Search3 from the Subsonic API to search by keyword
     response = requests.get(f"{SUB_SERVER}/rest/search3.view?query={query}", params=SUBSONIC_REQUEST_PARAMS)
@@ -91,11 +100,13 @@ async def search(ctx, query: str) -> None:
     else:
         output = "Results for **" + query + "**:\n\n"
         for i, song in enumerate(songs):
-            output += f"**{i+1}.** {song['title']} - *{song['artist']}*\n"
+            output += f"**{i+1}.** {song['title']} - *{song['artist']}*    [from {song['album']}]\n\n"
+            if i == 9: # temporary
+                break
         await ctx.send(output)
 
 
-@bot.command()
+@bot.command(name="stop")
 async def stop(ctx) -> None:
     ''' Disconnect from the active voice channel '''
 
