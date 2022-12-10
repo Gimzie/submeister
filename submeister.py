@@ -2,18 +2,12 @@
 
 import discord
 import os
-import requests
+import subsonic
 
 from discord import app_commands
 from dotenv import load_dotenv
-from urllib import parse as urlParse
 
 load_dotenv(os.path.relpath("data.env"))
-
-# Get Subsonic server details
-SUB_SERVER = os.getenv("SUBSONIC_SERVER")
-SUB_USER = os.getenv("SUBSONIC_USER")
-SUB_PASSWORD = os.getenv("SUBSONIC_PASSWORD")
 
 # Get Discord bot details
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -24,14 +18,6 @@ if os.getenv("DISCORD_TEST_GUILD") is not None:
 else:
     DISCORD_TEST_GUILD = None
 
-# Parameters for the Subsonic API
-SUBSONIC_REQUEST_PARAMS = {
-        "u": SUB_USER,
-        "p": SUB_PASSWORD,
-        "v": "1.15.0",
-        "c": "submeister",
-        "f": "json"
-    }
 
 
 # Create the bot instance (TODO: Clean up intents)
@@ -70,11 +56,7 @@ async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
     ''' Streams a track from the Subsonic server '''
 
     # Stream from the Subsonic server, using the provided song ID
-    url = f"{SUB_SERVER}/rest/stream.view?id={song_id}"
-
-    song = requests.get(url, params=SUBSONIC_REQUEST_PARAMS, stream=True)
-
-    audio_src = discord.FFmpegPCMAudio(song.url)
+    audio_src = discord.FFmpegPCMAudio(subsonic.stream(song_id))
 
     voice_client = await get_voice_client(interaction, should_connect=True)
 
@@ -86,18 +68,8 @@ async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
 async def play(interaction: discord.Interaction, query: str) -> None:
     ''' Play a track matching the given title/artist query '''
 
-    # Sanitize special characters in the user's query
-    parsed_query = urlParse.quote(query, safe='')
-
-    # Use Search2 from the Subsonic API to search by keyword
-    url = f"{SUB_SERVER}/rest/search2.view?query={parsed_query}&artistCount=1&songCount=1"
-
-    # Send a request to the server and store the response
-    response = requests.get(url, params=SUBSONIC_REQUEST_PARAMS)
-
     # Check for a top search result
-    search_data = response.json()
-    songs = search_data["subsonic-response"]["searchResult2"]["song"]
+    songs = subsonic.search(query, artist_count=0, album_count=0, song_count=20)
 
     if len(songs) == 0:
         await interaction.response.send_message("No results found for **" + query + "**.")
@@ -121,15 +93,8 @@ async def play(interaction: discord.Interaction, query: str) -> None:
 async def search(interaction: discord.Interaction, query: str) -> None:
     ''' Search for tracks by the given title/artist & list them '''
 
-    # Sanitize special characters in the user's query
-    parsed_query = urlParse.quote(query, safe='')
-
-    # Use Search3 from the Subsonic API to search by keyword
-    response = requests.get(f"{SUB_SERVER}/rest/search3.view?query={parsed_query}", params=SUBSONIC_REQUEST_PARAMS)
-    search_data = response.json()
-
     # Output the list of tracks to the user
-    songs = search_data["subsonic-response"]["searchResult3"]["song"]
+    songs = subsonic.search(query, artist_count=0, album_count=0, song_count=10)
 
     if len(songs) == 0:
         await interaction.response.send_message("No results found for **" + query + "**.")
