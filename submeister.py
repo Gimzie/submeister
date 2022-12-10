@@ -56,7 +56,8 @@ async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
     ''' Streams a track from the Subsonic server '''
 
     # Stream from the Subsonic server, using the provided song ID
-    audio_src = discord.FFmpegPCMAudio(subsonic.stream(song_id))
+    ffmpeg_options = {"before_options": "", "options": "-filter:a volume=replaygain=track"}
+    audio_src = discord.FFmpegPCMAudio(subsonic.stream(song_id), **ffmpeg_options)
 
     voice_client = await get_voice_client(interaction, should_connect=True)
 

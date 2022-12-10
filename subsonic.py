@@ -26,10 +26,10 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
     ''' Send a search request to the subsonic API '''
 
     # Sanitize special characters in the user's query
-    parsed_query = urlParse.quote(query, safe='')
+    #parsed_query = urlParse.quote(query, safe='')
 
     search_params = {
-        "query": parsed_query,
+        "query": query, #todo: fix parsed query
         "artistCount": str(artist_count),
         "artistOffset": str(artist_offset),
         "albumCount": str(album_count),
