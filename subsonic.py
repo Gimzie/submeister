@@ -43,9 +43,9 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
     response = requests.get(f"{SUB_SERVER}/rest/search3.view", params=params)
     search_data = response.json()
 
-    songs = search_data["subsonic-response"]["searchResult3"]["song"]
+    results = search_data["subsonic-response"]["searchResult3"]
 
-    return songs
+    return results
 
 
 def stream(id: int, *, max_bitrate: int=None, format: str=None, estimate_content_length: bool=False):
