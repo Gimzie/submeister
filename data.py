@@ -1,5 +1,8 @@
 '''Data used throughout the application'''
 
+import pickle
+import os
+
 from enum import Enum
 
 # Discord-related
@@ -25,6 +28,10 @@ class GuildProperties():
     @property
     def queue(self) -> list:
         return self._properties["queue"]
+    
+    @queue.setter
+    def queue(self, value: list) -> None:
+        self._properties["queue"] = value
 
     @property
     def autoplay(self) -> bool:
@@ -42,7 +49,6 @@ class GuildProperties():
     def autoplay_mode(self, value: AutoplayMode) -> None:
         self._properties["autoplay-mode"] = value
 
-# Todo: Maybe save/load this to file to allow queue etc to persist between bot restarts
 _guild_instances: dict[int, GuildProperties] = {} # Dictionary to store properties for each guild instance
 
 def guild_properties(guild_id: int) -> GuildProperties:
@@ -57,3 +63,20 @@ def guild_properties(guild_id: int) -> GuildProperties:
     _guild_instances[guild_id] = properties
     return _guild_instances[guild_id]
 
+def save_guild_properties_to_disk() -> None:
+    ''' Saves guild properties to disk '''
+
+    with open('guild_properties.pickle', 'wb') as file:
+        pickle.dump(_guild_instances, file, protocol=pickle.HIGHEST_PROTOCOL)
+
+def load_guild_properties_from_disk() -> None:
+    ''' Loads guild properties that have been saved to disk '''
+
+    if not os.path.exists('guild_properties.pickle'):
+        print("doesn't exist")
+        return
+    
+    with open('guild_properties.pickle', 'rb') as file:
+        _guild_instances.update(pickle.load(file))
+    
+    print(f"Keys: {_guild_instances.keys()} Values: {_guild_instances.values()}")

@@ -44,11 +44,6 @@ async def get_voice_client(interaction: discord.Interaction, *, should_connect: 
     return voice_client
 
 
-def get_audio_queue(guild_id: int) -> list:
-    ''' Returns the audio queue for the specified guild '''
-    return data.guild_properties(guild_id).queue
-
-
 async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=None):
     ''' Handles populating the queue when autoplay is enabled '''
 
@@ -74,14 +69,18 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
-    queue = get_audio_queue(interaction.guild_id)
+    queue = data.guild_properties(interaction.guild_id).queue
     queue.append(songs[0])
 
 
 async def play_audio_queue(interaction: discord.Interaction) -> None:
-    queue = get_audio_queue(interaction.guild_id)
+    queue = data.guild_properties(interaction.guild_id).queue
 
-    # Check if the queue is empty
+    # If queue is empty but autoplay is enabled, handle autoplay
+    if queue == [] and data.guild_properties(interaction.guild_id).autoplay is True:
+        await handle_autoplay(interaction)
+
+    # Check if the queue contains songs
     if queue != []:
 
         # Pop the first item from the queue and begin streaming it
@@ -95,13 +94,9 @@ async def play_audio_queue(interaction: discord.Interaction) -> None:
         # Display an embed that shows the song that is currently playing
         now_playing = f"**{song['title']}** - *{song['artist']}*"
         embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
-        await interaction.followup.send(embed=embed)
+        await interaction.channel.send(embed=embed)
         return
-    
-    # If queue is empty but autoplay is enabled, handle autoplay
-    if data.guild_properties(interaction.guild_id).autoplay is True:
-        await handle_autoplay(interaction, None)
 
     # If the queue is empty, playback has ended. Display an embed indicating that playback ended
     embed = discord.Embed(color=discord.Color.orange(), title="Playback ended.")
-    await interaction.followup.send(embed=embed)
+    await interaction.channel.send(embed=embed)

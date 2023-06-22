@@ -130,3 +130,6 @@ dmypy.json
 .pyre/
 /ffmpeg.exe
 /data.env
+
+# Python pickle files
+*.pickle
