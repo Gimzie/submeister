@@ -1,11 +1,10 @@
 '''For interfacing with the Subsonic API'''
 
-import requests
 import os
+import requests
 
 from dotenv import load_dotenv
 from urllib import parse as urlParse
-
 
 load_dotenv(os.path.relpath("data.env"))
 

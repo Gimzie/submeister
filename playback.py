@@ -5,6 +5,7 @@ import discord
 
 import data
 import subsonic
+import ui
 
 async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
     ''' Streams a track from the Subsonic server to a connected voice channel'''
@@ -68,6 +69,8 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
         embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"Autoplay failed")
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
+
+    songs[0] = ui.ensure_song_has_displayable_tags(songs[0])
 
     queue = data.guild_properties(interaction.guild_id).queue
     queue.append(songs[0])

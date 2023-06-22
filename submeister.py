@@ -1,8 +1,8 @@
 # Submeister - A Discord bot that streams music from your personal Subsonic server.
 
+import atexit
 import discord
 import os
-import atexit
 
 import data
 import playback
@@ -180,7 +180,7 @@ async def search(interaction: discord.Interaction, query: str) -> None:
             return
 
         # Generate a new embed containing this page's search results
-        song_list = ui.parse_search_as_track_selection_embed(songs, query, song_offset // song_count)
+        song_list = ui.parse_search_as_track_selection_embed(songs, query, (song_offset // song_count) + 1)
 
         # Create a selection menu, populated with our new options
         select_options = ui.parse_search_as_track_selection_options(songs)
@@ -240,7 +240,7 @@ async def show_queue(interaction: discord.Interaction) -> None:
 
     # Loop over our queue, adding each song into our output string
     for i, song in enumerate(queue):
-        output += f"{i+1}. **{song['title']}** - *{song['artist']}*\n{song['album']} ({song['duration']})"
+        output += f"{i+1}. **{song['title']}** - *{song['artist']}*\n{song['album']} ({song['duration']})\n\n"
 
     # Check if our output string is empty & update it 
     if output == "":

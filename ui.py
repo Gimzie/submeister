@@ -2,7 +2,6 @@
 
 import discord
 
-
 def ensure_song_has_displayable_tags(song: dict) -> dict:
     ''' Takes a song object that was returned from the Subsonic API and ensures all necessary tag keys are present on the object '''
 

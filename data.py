@@ -1,7 +1,7 @@
 '''Data used throughout the application'''
 
-import pickle
 import os
+import pickle
 
 from enum import Enum
 
