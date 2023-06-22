@@ -9,17 +9,23 @@ import subsonic
 async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
     ''' Streams a track from the Subsonic server to a connected voice channel'''
 
-    # Get the stream from the Subsonic server, using the provided song ID
-    ffmpeg_options = {"before_options": "", "options": "-filter:a volume=replaygain=track"}
-    audio_src = discord.FFmpegPCMAudio(subsonic.stream(song_id), **ffmpeg_options)
-
     # Get the voice client for the current guild
     voice_client = await get_voice_client(interaction, should_connect=True)
 
+    # Make sure the bot isn't already playing music
+    if voice_client.is_playing():
+        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Already playing music.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    # Get the stream from the Subsonic server, using the provided song ID
+    ffmpeg_options = {"before_options": "", "options": "-filter:a volume=replaygain=track"}
+    audio_src = discord.FFmpegOpusAudio(subsonic.stream(song_id), **ffmpeg_options)
+    audio_src.read()
+
     # Begin playing the song
-    if not voice_client.is_playing():
-        loop = asyncio.get_event_loop()
-        voice_client.play(audio_src, after=lambda error: asyncio.run_coroutine_threadsafe(play_audio_queue(interaction), loop)) # TODO: probably should handle error
+    loop = asyncio.get_event_loop()
+    voice_client.play(audio_src, after=lambda error: asyncio.run_coroutine_threadsafe(play_audio_queue(interaction), loop)) # TODO: probably should handle error
 
 
 async def get_voice_client(interaction: discord.Interaction, *, should_connect: bool=False) -> discord.VoiceClient:
@@ -56,12 +62,13 @@ async def play_audio_queue(interaction: discord.Interaction) -> None:
 
     # Check if the queue is empty
     if queue != []:
+
         # Pop the first item from the queue and begin streaming it
         song = queue.pop(0)
         await stream_track(interaction, song['id'])
 
         # Display an embed that shows the song that is currently playing
-        now_playing = f"{song['title']} - *{song['artist']}* ({song['duration']})"
+        now_playing = f"**{song['title']}** - *{song['artist']}*"
         embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
         await interaction.followup.send(embed=embed)
         return

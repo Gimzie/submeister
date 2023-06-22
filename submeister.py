@@ -17,7 +17,7 @@ load_dotenv(os.path.relpath("data.env"))
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 # Get the guild id to populate commands to, if specified
-if os.getenv("DISCORD_TEST_GUILD") is not None:
+if os.getenv("DISCORD_TEST_GUILD") not in (None, ""):
     DISCORD_TEST_GUILD = discord.Object(id=os.getenv("DISCORD_TEST_GUILD"))
 else:
     DISCORD_TEST_GUILD = None
@@ -70,7 +70,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
         await playback.play_audio_queue(interaction)
         return
 
-    # Send our query to the subsonic API and retrieve a list of 1 songs
+    # Send our query to the subsonic API and retrieve a list of 1 song
     results = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
     songs = results['song']
 
@@ -92,7 +92,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
     await playback.stream_track(interaction, song['id'])
 
     # Create an embed that shows the selected song has been added to queue
-    now_playing = f"{song['title']} - *{song['artist']}* ({song['duration']})"
+    now_playing = f"**{song['title']}** - *{song['artist']}*"
 
     embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
     await interaction.response.send_message(embed=embed)
@@ -103,22 +103,19 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
 async def search(interaction: discord.Interaction, query: str) -> None:
     ''' Search for tracks by the given title/artist & list them '''
 
-    # The number of songs to retrieve and the offset to begin at
-    song_count = 10
+    # The number of songs to retrieve and the offset to start at
+    song_count = 10 # TODO: Make this user-adjustable
     song_offset = 0
 
     # Send our query to the subsonic API and retrieve a list of songs
     results = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
     songs = results['song']
 
-    # Check if we received any results
+    # Display an error if the query returned no results
     if len(songs) == 0:
-
-        # Display an error if the query returned no results
         embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"No results found for **{query}**.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
-
 
     # Create a view for our response
     view = discord.ui.View()
@@ -130,7 +127,8 @@ async def search(interaction: discord.Interaction, query: str) -> None:
     song_selector = discord.ui.Select(placeholder="Select a track", options=select_options)
     view.add_item(song_selector)
 
-    # Create a callback to handle interaction with a select item
+
+    # Callback to handle interaction with a select item
     async def song_selected(interaction: discord.Interaction) -> None:
         # Get the song selected by the user
         selected_song = songs[int(song_selector.values[0])]
@@ -140,15 +138,15 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         queue.append(selected_song)
         
         # Create a confirmation embed
-        selection_str = f"{selected_song['title']} - *{selected_song['artist']}*    [from {selected_song['album']}]\n\n"
-        selection_embed = discord.Embed(color=discord.Color.orange(), title="Added selection to queue", description=f"{selection_str}")
+        selection_str = f"**{selected_song['title']}** - *{selected_song['artist']}*\n{selected_song['album']} ({selected_song['duration']})"
+        selection_embed = discord.Embed(color=discord.Color.orange(), title=f"{interaction.user.display_name} added selection to queue", description=f"{selection_str}")
 
         # Update the message to show the confirmation embed
         await interaction.response.send_message(embed=selection_embed)
 
+
     # Assign the song_selected callback to the select menu
     song_selector.callback = song_selected
-
 
     # Create page navigation buttons
     prev_button = discord.ui.Button(label="<", custom_id="prev_button")
@@ -156,42 +154,48 @@ async def search(interaction: discord.Interaction, query: str) -> None:
     view.add_item(prev_button)
     view.add_item(next_button)
 
-    # Create callback to handle interactions with page navigator buttons
-    async def page_changed(interaction: discord.Interaction) -> None:
-        # Adjust the search offset accordingly
 
-        if interaction.id == "prev_button":
-            song_offset -= max(song_count, 0)
-        elif interaction.id == "next_button":
-            print("next button pressed")
+    # Callback to handle interactions with page navigator buttons
+    async def page_changed(interaction: discord.Interaction) -> None:
+        nonlocal song_count, song_offset, song_selector, song_selected, songs, results
+        
+        # Adjust the search offset according to the button pressed
+        if interaction.data['custom_id'] == "prev_button":
+            song_offset = max(song_offset - song_count, 0)
+        elif interaction.data['custom_id'] == "next_button":
             song_offset += song_count
 
-        # Send our query to the subsonic API and retrieve a list of songs
+        # Send our query to the Subsonic API and retrieve a list of songs, backing up the previous page's songs first
         results = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
+        songs_lastpage = songs
         songs = results['song']
 
-        # Check if we received any results
+        # If there are no results on this page, go back one page and don't update the response
         if len(songs) == 0:
-            # Display an error if the query returned no results
-            embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"No results found for **{query}**.")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            song_offset -= song_count
+            songs = songs_lastpage
+            await interaction.response.defer()
             return
-        
 
-        # Generate a new embed containing search results
+        # Generate a new embed containing this page's search results
         song_list = ui.parse_search_as_track_selection_embed(songs, query, song_offset // song_count)
 
-        # Create a select menu, populated with our new options
+        # Create a selection menu, populated with our new options
         select_options = ui.parse_search_as_track_selection_options(songs)
+
+        # Update the selector in the existing view
+        view.remove_item(song_selector)
         song_selector = discord.ui.Select(placeholder="Select a track", options=select_options)
+        song_selector.callback = song_selected
+        view.add_item(song_selector)
         
         # Update the message to show the new search results
         await interaction.response.edit_message(embed=song_list, view=view)
 
+
     # Assign the page_changed callback to the page navigation buttons
     prev_button.callback = page_changed
     next_button.callback = page_changed
-
 
     # Generate a formatted embed for the current search results
     song_list = ui.parse_search_as_track_selection_embed(songs, query, song_offset // song_count)
@@ -234,7 +238,7 @@ async def show_queue(interaction: discord.Interaction) -> None:
 
     # Loop over our queue, adding each song into our output string
     for i, song in enumerate(queue):
-        output += f"**{i+1}.** {song['title']} - *{song['artist']}*    [from {song['album']}]\n\n"
+        output += f"{i+1}. **{song['title']}** - *{song['artist']}*\n{song['album']} ({song['duration']})"
 
     # Check if our output string is empty & update it 
     if output == "":
