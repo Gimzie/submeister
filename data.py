@@ -73,10 +73,7 @@ def load_guild_properties_from_disk() -> None:
     ''' Loads guild properties that have been saved to disk '''
 
     if not os.path.exists('guild_properties.pickle'):
-        print("doesn't exist")
         return
     
     with open('guild_properties.pickle', 'rb') as file:
         _guild_instances.update(pickle.load(file))
-    
-    print(f"Keys: {_guild_instances.keys()} Values: {_guild_instances.values()}")
