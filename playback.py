@@ -44,17 +44,38 @@ async def get_voice_client(interaction: discord.Interaction, *, should_connect: 
     return voice_client
 
 
-def get_audio_queue(guild_id: discord.Interaction.guild_id) -> list:
+def get_audio_queue(guild_id: int) -> list:
     ''' Returns the audio queue for the specified guild '''
+    return data.guild_properties(guild_id).queue
 
-    # Return the current audio queue for the guild if one exists
-    if guild_id in data.audio_queues:
-        return data.audio_queues[guild_id]
 
-    # Create an audio queue for the guild if one doesn't exist
-    queue = []
-    data.audio_queues[guild_id] = queue
-    return queue
+async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=None):
+    ''' Handles populating the queue when autoplay is enabled '''
+
+    autoplay_mode = data.guild_properties(interaction.guild_id).autoplay_mode
+
+    # If there was no previous song provided, we default back to selecting a random song
+    if prev_song_id is None:
+        autoplay_mode = data.AutoplayMode.RANDOM
+
+    songs = []
+
+    match autoplay_mode:
+        case data.AutoplayMode.RANDOM:
+            results = subsonic.get_random_songs(size=1)
+            songs = results['song']
+        case data.AutoplayMode.SIMILAR:
+            results = subsonic.get_similar_songs(id=prev_song_id, count=1)
+            songs = results['song']
+        
+
+    if len(songs) == 0:
+        embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"Autoplay failed")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    queue = get_audio_queue(interaction.guild_id)
+    queue.append(songs[0])
 
 
 async def play_audio_queue(interaction: discord.Interaction) -> None:
@@ -67,11 +88,19 @@ async def play_audio_queue(interaction: discord.Interaction) -> None:
         song = queue.pop(0)
         await stream_track(interaction, song['id'])
 
+        # If queue will be empty after playback ends, handle autoplay
+        if queue == [] and data.guild_properties(interaction.guild_id).autoplay is True:
+            await handle_autoplay(interaction, song['id'])
+
         # Display an embed that shows the song that is currently playing
         now_playing = f"**{song['title']}** - *{song['artist']}*"
         embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
         await interaction.followup.send(embed=embed)
         return
+    
+    # If queue is empty but autoplay is enabled, handle autoplay
+    if data.guild_properties(interaction.guild_id).autoplay is True:
+        await handle_autoplay(interaction, None)
 
     # If the queue is empty, playback has ended. Display an embed indicating that playback ended
     embed = discord.Embed(color=discord.Color.orange(), title="Playback ended.")

@@ -58,14 +58,14 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
     # Check queue if no query is provided
     if query is None:
 
-        # Display error if queue is empty
-        if playback.get_audio_queue(interaction.guild_id) == []:
+        # Display error if queue is empty & autoplay is disabled
+        if playback.get_audio_queue(interaction.guild_id) == [] and data.guild_properties(interaction.guild_id).autoplay == False:
             embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Queue is empty.")
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         # Begin playback of queue
-        embed = discord.Embed(color=discord.Color.orange(), title="Starting queue playback")
+        embed = discord.Embed(color=discord.Color.orange(), title="Starting playback")
         await interaction.response.send_message(embed=embed)
         await playback.play_audio_queue(interaction)
         return
@@ -269,6 +269,33 @@ async def skip(interaction: discord.Interaction) -> None:
     # Display confirmation message
     queue_embed = discord.Embed(color=discord.Color.orange(), title="Skipping...")
     await interaction.response.send_message(embed=queue_embed)
+
+
+@command_tree.command(name="autoplay", description="Toggles autoplay", guild=DISCORD_TEST_GUILD)
+@app_commands.describe(enabled="Enable or disable autoplay")
+@app_commands.describe(mode="Determines the method to use when autoplaying")
+@app_commands.choices(mode=[
+    app_commands.Choice(name="Random", value='random'),
+    app_commands.Choice(name="Similar", value='similar'),
+])
+async def autoplay(interaction: discord.Interaction, enabled: bool, mode: app_commands.Choice[str]) -> None:
+    ''' Toggles autoplay '''
+
+    # update the autoplay properties
+    data.guild_properties(interaction.guild_id).autoplay = enabled
+
+    match mode.value:
+        case 'random':
+            data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.RANDOM
+        case 'similar':
+            data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.SIMILAR
+    
+    
+    status_str = "enabled" if enabled is True else "disabled"
+
+    # Display message indicating new status of autoplay
+    embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay {status_str} by {interaction.user.display_name}", description=f"Autoplay mode: **{mode.name}**")
+    await interaction.response.send_message(embed=embed)
 
 
 # Run Submeister
