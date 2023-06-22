@@ -163,7 +163,11 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         
         # Adjust the search offset according to the button pressed
         if interaction.data['custom_id'] == "prev_button":
-            song_offset = max(song_offset - song_count, 0)
+            song_offset -= song_count;
+            if song_offset < 0:
+                song_offset = 0
+                await interaction.response.defer()
+                return
         elif interaction.data['custom_id'] == "next_button":
             song_offset += song_count
 
@@ -200,7 +204,7 @@ async def search(interaction: discord.Interaction, query: str) -> None:
     next_button.callback = page_changed
 
     # Generate a formatted embed for the current search results
-    song_list = ui.parse_search_as_track_selection_embed(songs, query, song_offset // song_count)
+    song_list = ui.parse_search_as_track_selection_embed(songs, query, (song_offset // song_count) + 1)
 
     # Show our song selection menu
     await interaction.response.send_message(embed=song_list, view=view, ephemeral=True)
