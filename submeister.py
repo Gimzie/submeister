@@ -2,6 +2,7 @@
 
 import discord
 import os
+import atexit
 
 import data
 import playback
@@ -12,6 +13,8 @@ from discord import app_commands
 from dotenv import load_dotenv
 
 load_dotenv(os.path.relpath("data.env"))
+
+data.load_guild_properties_from_disk()
 
 # Get Discord bot details
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -38,7 +41,6 @@ class submeisterClient(discord.Client):
 data.sm_client = submeisterClient()
 command_tree = app_commands.CommandTree(data.sm_client)
 
-
 # -------------------------------- Commands -------------------------------- #
 
 
@@ -58,14 +60,14 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
     # Check queue if no query is provided
     if query is None:
 
-        # Display error if queue is empty
-        if playback.get_audio_queue(interaction.guild_id) == []:
+        # Display error if queue is empty & autoplay is disabled
+        if data.guild_properties(interaction.guild_id).queue == [] and data.guild_properties(interaction.guild_id).autoplay == False:
             embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Queue is empty.")
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         # Begin playback of queue
-        embed = discord.Embed(color=discord.Color.orange(), title="Starting queue playback")
+        embed = discord.Embed(color=discord.Color.orange(), title="Starting playback")
         await interaction.response.send_message(embed=embed)
         await playback.play_audio_queue(interaction)
         return
@@ -134,7 +136,7 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         selected_song = songs[int(song_selector.values[0])]
 
         # Add the selected song to the queue
-        queue = playback.get_audio_queue(interaction.guild_id)
+        queue = data.guild_properties(interaction.guild_id).queue
         queue.append(selected_song)
         
         # Create a confirmation embed
@@ -231,7 +233,7 @@ async def show_queue(interaction: discord.Interaction) -> None:
     ''' Show the current queue '''
 
     # Get the audio queue for the current guild
-    queue = playback.get_audio_queue(interaction.guild_id)
+    queue = data.guild_properties(interaction.guild_id).queue
 
     # Create a string to store the output of our queue
     output = ""
@@ -271,5 +273,37 @@ async def skip(interaction: discord.Interaction) -> None:
     await interaction.response.send_message(embed=queue_embed)
 
 
+@command_tree.command(name="autoplay", description="Toggles autoplay", guild=DISCORD_TEST_GUILD)
+@app_commands.describe(enabled="Enable or disable autoplay")
+@app_commands.describe(mode="Determines the method to use when autoplaying")
+@app_commands.choices(mode=[
+    app_commands.Choice(name="Random", value='random'),
+    app_commands.Choice(name="Similar", value='similar'),
+])
+async def autoplay(interaction: discord.Interaction, enabled: bool, mode: app_commands.Choice[str]) -> None:
+    ''' Toggles autoplay '''
+
+    # update the autoplay properties
+    data.guild_properties(interaction.guild_id).autoplay = enabled
+
+    match mode.value:
+        case 'random':
+            data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.RANDOM
+        case 'similar':
+            data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.SIMILAR
+    
+    
+    status_str = "enabled" if enabled is True else "disabled"
+
+    # Display message indicating new status of autoplay
+    embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay {status_str} by {interaction.user.display_name}", description=f"Autoplay mode: **{mode.name}**")
+    await interaction.response.send_message(embed=embed)
+
 # Run Submeister
 data.sm_client.run(BOT_TOKEN)
+
+# On Exit
+def exit_handler():
+    data.save_guild_properties_to_disk()
+
+atexit.register(exit_handler)
