@@ -1,3 +1,5 @@
+'''For interfacing with the Subsonic API'''
+
 import requests
 import os
 
