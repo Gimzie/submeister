@@ -144,6 +144,11 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         # Update the message to show the confirmation embed
         await interaction.response.send_message(embed=selection_embed)
 
+        # If the bot is connected to a voice channel, start queue playback
+        voice_client = await playback.get_voice_client(interaction)
+        if voice_client is not None:
+            await playback.play_audio_queue(interaction, voice_client)
+
 
     # Assign the song_selected callback to the select menu
     song_selector.callback = song_selected
@@ -251,6 +256,18 @@ async def show_queue(interaction: discord.Interaction) -> None:
     queue_embed = discord.Embed(color=discord.Color.orange(), title="Current queue:", description=output)
     await interaction.response.send_message(embed=queue_embed)
 
+@command_tree.command(name="clear-queue", description="Clear the queue", guild=DISCORD_TEST_GUILD)
+async def clear_queue(interaction: discord.Interaction) -> None:
+    '''Clear the queue'''
+
+    # Clear the queue
+    queue = data.guild_properties(interaction.guild_id).queue
+    queue.clear()
+
+    # Let the user know that the queue has been cleared
+    queue_embed = discord.Embed(color=discord.Color.orange(), title=f"{interaction.user.display_name} cleared the queue")
+    await interaction.response.send_message(embed=queue_embed)
+
 
 @command_tree.command(name="skip", description="Skip the current track", guild=DISCORD_TEST_GUILD)
 async def skip(interaction: discord.Interaction) -> None:
@@ -259,10 +276,15 @@ async def skip(interaction: discord.Interaction) -> None:
     # Get the voice client instance
     voice_client = await playback.get_voice_client(interaction)
 
-    # Check if audio is currently playing
+    # Respond with an error message if the bot is not connected to a voice channel
+    if voice_client is None:
+        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Not connected to a voice channel.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    # Respond with an error message if nothing is currently playing
     if not voice_client.is_playing():
-        # Display error message if nothing is currently playing
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Could not skip. No track currently playing.")
+        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="No track currently playing.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 

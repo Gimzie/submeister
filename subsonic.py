@@ -28,8 +28,8 @@ class Song():
         #! Other properties exist in the initial json response but are currently unused by Submeister and thus aren't supported here
         self._id: str = json_object['id'] if 'id' in json_object else ''
         self._title: str = json_object['title'] if 'title' in json_object else 'Unknown Track'
-        self._album: str = json_object['artist'] if 'artist' in json_object else 'Unknown Artist'
-        self._artist: str = json_object['album'] if 'album' in json_object else 'Unknown Album'
+        self._artist: str = json_object['artist'] if 'artist' in json_object else 'Unknown Artist'
+        self._album: str = json_object['album'] if 'album' in json_object else 'Unknown Album'
         self._duration: int = json_object['duration'] if 'duration' in json_object else 0
 
     @property
