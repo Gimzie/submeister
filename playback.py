@@ -98,7 +98,7 @@ async def play_audio_queue(interaction: discord.Interaction, voice_client: disco
         # Display an embed that shows the song that is currently playing
         now_playing = f"**{song.title}** - *{song.artist}*"
         embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
-        await interaction.channel.send(embed=embed)
+        await interaction.channel.send(embed=embed, delete_after=song.duration)
         return
 
     # If the queue is empty, playback has ended. Display an embed indicating that playback ended
