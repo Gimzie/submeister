@@ -86,7 +86,7 @@ async def play_audio_queue(interaction: discord.Interaction, voice_client: disco
     queue = data.guild_properties(interaction.guild_id).queue
 
     # If queue is empty but autoplay is enabled, handle autoplay
-    if queue == [] and data.guild_properties(interaction.guild_id).autoplay is True:
+    if queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode is not data.AutoplayMode.NONE:
         await handle_autoplay(interaction)
 
     # Check if the queue contains songs
@@ -97,7 +97,7 @@ async def play_audio_queue(interaction: discord.Interaction, voice_client: disco
         await stream_track(interaction, song['id'], voice_client)
 
         # If queue will be empty after playback ends, handle autoplay
-        if queue == [] and data.guild_properties(interaction.guild_id).autoplay is True:
+        if queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode is not data.AutoplayMode.NONE:
             await handle_autoplay(interaction, song['id'])
 
         # Display an embed that shows the song that is currently playing

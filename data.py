@@ -10,13 +10,13 @@ sm_client = None
 
 # Guild properties
 class AutoplayMode(Enum):
-    RANDOM = 0,
-    SIMILAR = 1
+    NONE = 0,
+    RANDOM = 1,
+    SIMILAR = 2
 
 _default_properties: dict[str, any] = {
     "queue": [],
-    "autoplay": False,
-    "autoplay-mode": AutoplayMode.RANDOM
+    "autoplay-mode": AutoplayMode.NONE
 }
 
 class GuildProperties():
@@ -32,14 +32,6 @@ class GuildProperties():
     @queue.setter
     def queue(self, value: list) -> None:
         self._properties["queue"] = value
-
-    @property
-    def autoplay(self) -> bool:
-        return self._properties["autoplay"]
-    
-    @autoplay.setter
-    def autoplay(self, value: bool) -> None:
-        self._properties["autoplay"] = value
 
     @property
     def autoplay_mode(self) -> AutoplayMode:

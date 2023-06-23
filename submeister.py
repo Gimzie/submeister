@@ -3,6 +3,7 @@
 import atexit
 import discord
 import os
+import signal
 
 import data
 import playback
@@ -16,7 +17,7 @@ load_dotenv(os.path.relpath("data.env"))
 
 data.load_guild_properties_from_disk()
 
-# Get Discord bot details
+# Get Discord bot detailss
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 # Get the guild id to populate commands to, if specified
@@ -64,7 +65,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
     if query is None:
 
         # Display error if queue is empty & autoplay is disabled
-        if data.guild_properties(interaction.guild_id).queue == [] and data.guild_properties(interaction.guild_id).autoplay == False:
+        if data.guild_properties(interaction.guild_id).queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode == data.AutoplayMode.NONE:
             embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Queue is empty.")
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -281,30 +282,35 @@ async def skip(interaction: discord.Interaction) -> None:
 
 
 @command_tree.command(name="autoplay", description="Toggles autoplay", guild=DISCORD_TEST_GUILD)
-@app_commands.describe(enabled="Enable or disable autoplay")
 @app_commands.describe(mode="Determines the method to use when autoplaying")
 @app_commands.choices(mode=[
+    app_commands.Choice(name="None", value='none'),
     app_commands.Choice(name="Random", value='random'),
     app_commands.Choice(name="Similar", value='similar'),
 ])
-async def autoplay(interaction: discord.Interaction, enabled: bool, mode: app_commands.Choice[str]) -> None:
+async def autoplay(interaction: discord.Interaction, mode: app_commands.Choice[str]) -> None:
     ''' Toggles autoplay '''
 
-    # update the autoplay properties
-    data.guild_properties(interaction.guild_id).autoplay = enabled
-
+    # Update the autoplay properties
     match mode.value:
+        case 'none':
+            data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.NONE
         case 'random':
             data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.RANDOM
         case 'similar':
             data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.SIMILAR
     
-    
-    status_str = "enabled" if enabled is True else "disabled"
-
     # Display message indicating new status of autoplay
-    embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay {status_str} by {interaction.user.display_name}", description=f"Autoplay mode: **{mode.name}**")
+    if (mode.value == 'none'):
+        embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay disabled by {interaction.user.display_name}")
+    else:
+        embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay enabled by {interaction.user.display_name}", description=f"Autoplay mode: **{mode.name}**")
     await interaction.response.send_message(embed=embed)
+
+    # If the bot is connected to a voice channel and autoplay is enabled, start queue playback
+    voice_client = await playback.get_voice_client(interaction)
+    if voice_client is not None:
+        await playback.play_audio_queue(interaction, voice_client)
 
 # Run Submeister
 data.sm_client.run(BOT_TOKEN)
@@ -314,3 +320,6 @@ def exit_handler():
     data.save_guild_properties_to_disk()
 
 atexit.register(exit_handler)
+signal.signal(signal.SIGINT, exit_handler)
+signal.signal(signal.SIGTERM, exit_handler)
+signal.signal(signal.SIGQUIT, exit_handler)
