@@ -45,7 +45,7 @@ def parse_search_as_track_selection_embed(results: list, query: str, page_num: i
         # Only trim the longest tag on the first line
         top_str_length = len(song['title'] + ' - ' + song["artist"])
         if top_str_length > 71:
-
+            
             if tr_title > tr_artist:
                 tr_title = song["title"][:(68 - top_str_length)] + '...'
             else:

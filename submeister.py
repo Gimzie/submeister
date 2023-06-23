@@ -57,6 +57,9 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
+    # Open a voice channel connection
+    voice_client = await playback.get_voice_client(interaction, should_connect=True)
+
     # Check queue if no query is provided
     if query is None:
 
@@ -69,7 +72,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
         # Begin playback of queue
         embed = discord.Embed(color=discord.Color.orange(), title="Starting playback")
         await interaction.response.send_message(embed=embed)
-        await playback.play_audio_queue(interaction)
+        await playback.play_audio_queue(interaction, voice_client)
         return
 
     # Send our query to the subsonic API and retrieve a list of 1 song
@@ -91,7 +94,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
     song = ui.ensure_song_has_displayable_tags(song)
 
     # Stream the top-most track & inform the user
-    await playback.stream_track(interaction, song['id'])
+    await playback.stream_track(interaction, song['id'], voice_client)
 
     # Create an embed that shows the selected song has been added to queue
     now_playing = f"**{song['title']}** - *{song['artist']}*"
@@ -218,7 +221,7 @@ async def stop(interaction: discord.Interaction) -> None:
     voice_client = await playback.get_voice_client(interaction)
 
     # Check if our voice client is connected
-    if voice_client == None:
+    if voice_client is None:
         # Display error message if our client is not connected
         embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Not currently connected to a voice channel.")
         await interaction.response.send_message(embed=embed, ephemeral=True)

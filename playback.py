@@ -7,11 +7,12 @@ import data
 import subsonic
 import ui
 
-async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
+async def stream_track(interaction: discord.Interaction, song_id: str, voice_client: discord.VoiceClient) -> None:
     ''' Streams a track from the Subsonic server to a connected voice channel'''
 
-    # Get the voice client for the current guild
-    voice_client = await get_voice_client(interaction, should_connect=True)
+    # Make sure the voice client is available
+    if voice_client is None:
+        return
 
     # Make sure the bot isn't already playing music
     if voice_client.is_playing():
@@ -26,7 +27,7 @@ async def stream_track(interaction: discord.Interaction, song_id: str) -> None:
 
     # Begin playing the song
     loop = asyncio.get_event_loop()
-    voice_client.play(audio_src, after=lambda error: asyncio.run_coroutine_threadsafe(play_audio_queue(interaction), loop)) # TODO: probably should handle error
+    voice_client.play(audio_src, after=lambda error: asyncio.run_coroutine_threadsafe(play_audio_queue(interaction, voice_client), loop)) # TODO: probably should handle error
 
 
 async def get_voice_client(interaction: discord.Interaction, *, should_connect: bool=False) -> discord.VoiceClient:
@@ -76,7 +77,12 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
     queue.append(songs[0])
 
 
-async def play_audio_queue(interaction: discord.Interaction) -> None:
+async def play_audio_queue(interaction: discord.Interaction, voice_client: discord.VoiceClient) -> None:
+
+    # Check if the bot is connected to a voice channel; it's the caller's responsibility to open a voice channel
+    if voice_client is None:
+        return
+
     queue = data.guild_properties(interaction.guild_id).queue
 
     # If queue is empty but autoplay is enabled, handle autoplay
@@ -88,7 +94,7 @@ async def play_audio_queue(interaction: discord.Interaction) -> None:
 
         # Pop the first item from the queue and begin streaming it
         song = queue.pop(0)
-        await stream_track(interaction, song['id'])
+        await stream_track(interaction, song['id'], voice_client)
 
         # If queue will be empty after playback ends, handle autoplay
         if queue == [] and data.guild_properties(interaction.guild_id).autoplay is True:
