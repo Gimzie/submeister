@@ -23,7 +23,41 @@ SUBSONIC_REQUEST_PARAMS = {
     }
 
 
-def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_count: int=20, album_offset: int=0, song_count: int=20, song_offset: int=0) -> dict:
+class Song():
+    def __init__(self, json_object: dict) -> None:
+        #! Other properties exist in the initial json response but are currently unused by Submeister and thus aren't supported here
+        self._id: str = json_object['id'] if 'id' in json_object else ''
+        self._title: str = json_object['title'] if 'title' in json_object else 'Unknown Track'
+        self._album: str = json_object['artist'] if 'artist' in json_object else 'Unknown Artist'
+        self._artist: str = json_object['album'] if 'album' in json_object else 'Unknown Album'
+        self._duration: int = json_object['duration'] if 'duration' in json_object else 0
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def title(self) -> str:
+        return self._title
+    
+    @property
+    def album(self) -> str:
+        return self._album
+    
+    @property
+    def artist(self) -> str:
+        return self._artist
+    
+    @property
+    def duration(self) -> int:
+        return self._duration
+    
+    @property
+    def duration_printable(self) -> str:
+        return f"{(self._duration // 60):02d}:{(self._duration % 60):02d}"
+
+
+def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_count: int=20, album_offset: int=0, song_count: int=20, song_offset: int=0) -> list[Song]:
     ''' Send a search request to the subsonic API '''
 
     # Sanitize special characters in the user's query
@@ -44,11 +78,13 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
     response = requests.get(f"{SUB_SERVER}/rest/search3.view", params=params)
     search_data = response.json()
 
-    results = search_data["subsonic-response"]["searchResult3"]
+    results: list[Song] = []
+    for item in search_data["subsonic-response"]["searchResult3"]['song']:
+        results.append(Song(item))
 
     return results
 
-def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_year: int=None, music_folder_id: str=None):
+def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_year: int=None, music_folder_id: str=None) -> list[Song]:
     ''' Request random songs from the subsonic API '''
 
     search_params: dict[str, any] = {}
@@ -74,11 +110,13 @@ def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_ye
     response = requests.get(f"{SUB_SERVER}/rest/getRandomSongs.view", params=params)
     search_data = response.json()
 
-    results = search_data["subsonic-response"]["randomSongs"]
+    results: list[Song] = []
+    for item in search_data["subsonic-response"]["randomSongs"]['song']:
+        results.append(Song(item))
 
     return results
 
-def get_similar_songs(id: int, count: int=50):
+def get_similar_songs(id: int, count: int=50) -> list[Song]:
     ''' Request similar songs from the subsonic API '''
 
     search_params = {
@@ -90,7 +128,9 @@ def get_similar_songs(id: int, count: int=50):
     response = requests.get(f"{SUB_SERVER}/rest/getSimilarSongs2.view", params=params)
     search_data = response.json()
 
-    results = search_data["subsonic-response"]["similarSongs2"]
+    results: list[Song] = []
+    for item in search_data["subsonic-response"]["similarSongs2"]['song']:
+        results.append(Song(item))
 
     return results
 

@@ -59,19 +59,14 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
 
     match autoplay_mode:
         case data.AutoplayMode.RANDOM:
-            results = subsonic.get_random_songs(size=1)
-            songs = results['song']
+            songs = subsonic.get_random_songs(size=1)
         case data.AutoplayMode.SIMILAR:
-            results = subsonic.get_similar_songs(id=prev_song_id, count=1)
-            songs = results['song']
-        
+            songs = subsonic.get_similar_songs(id=prev_song_id, count=1)        
 
     if len(songs) == 0:
         embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"Autoplay failed")
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
-
-    songs[0] = ui.ensure_song_has_displayable_tags(songs[0])
 
     queue = data.guild_properties(interaction.guild_id).queue
     queue.append(songs[0])
@@ -94,16 +89,16 @@ async def play_audio_queue(interaction: discord.Interaction, voice_client: disco
 
         # Pop the first item from the queue and begin streaming it
         song = queue.pop(0)
-        await stream_track(interaction, song['id'], voice_client)
+        await stream_track(interaction, song.id, voice_client)
 
         # If queue will be empty after playback ends, handle autoplay
         if queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode is not data.AutoplayMode.NONE:
-            await handle_autoplay(interaction, song['id'])
+            await handle_autoplay(interaction, song.id)
 
         # Display an embed that shows the song that is currently playing
-        now_playing = f"**{song['title']}** - *{song['artist']}*"
+        now_playing = f"**{song.title}** - *{song.artist}*"
         embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
-        await interaction.channel.send(embed=embed)
+        await interaction.channel.send(embed=embed, delete_after=song.duration)
         return
 
     # If the queue is empty, playback has ended. Display an embed indicating that playback ended
