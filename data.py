@@ -3,6 +3,7 @@
 import os
 import pickle
 
+from subsonic import Song
 from enum import Enum
 
 # Discord-related
@@ -23,10 +24,9 @@ class GuildProperties():
     ''' Class that holds all Submeister properties specific to a guild '''
     def __init__(self) -> None:
         self._properties = _default_properties
-        pass
 
     @property
-    def queue(self) -> list:
+    def queue(self) -> list[Song]:
         return self._properties["queue"]
     
     @queue.setter

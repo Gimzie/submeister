@@ -77,8 +77,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
         return
 
     # Send our query to the subsonic API and retrieve a list of 1 song
-    results = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
-    songs = results['song']
+    songs = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
 
     # Check if we received any results
     if len(songs) == 0:
@@ -91,14 +90,11 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
     # Take the first result
     song = songs[0]
 
-    # Ensure our result has valid tags
-    song = ui.ensure_song_has_displayable_tags(song)
-
     # Stream the top-most track & inform the user
-    await playback.stream_track(interaction, song['id'], voice_client)
+    await playback.stream_track(interaction, song.id, voice_client)
 
     # Create an embed that shows the selected song has been added to queue
-    now_playing = f"**{song['title']}** - *{song['artist']}*"
+    now_playing = f"**{song.title}** - *{song.artist}*"
 
     embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
     await interaction.response.send_message(embed=embed)
@@ -114,8 +110,7 @@ async def search(interaction: discord.Interaction, query: str) -> None:
     song_offset = 0
 
     # Send our query to the subsonic API and retrieve a list of songs
-    results = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
-    songs = results['song']
+    songs = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
 
     # Display an error if the query returned no results
     if len(songs) == 0:
@@ -144,7 +139,7 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         queue.append(selected_song)
         
         # Create a confirmation embed
-        selection_str = f"**{selected_song['title']}** - *{selected_song['artist']}*\n{selected_song['album']} ({selected_song['duration']})"
+        selection_str = f"**{selected_song.title}** - *{selected_song.artist}*\n{selected_song.album} ({selected_song.duration_printable})"
         selection_embed = discord.Embed(color=discord.Color.orange(), title=f"{interaction.user.display_name} added selection to queue", description=f"{selection_str}")
 
         # Update the message to show the confirmation embed
@@ -163,11 +158,11 @@ async def search(interaction: discord.Interaction, query: str) -> None:
 
     # Callback to handle interactions with page navigator buttons
     async def page_changed(interaction: discord.Interaction) -> None:
-        nonlocal song_count, song_offset, song_selector, song_selected, songs, results
+        nonlocal song_count, song_offset, song_selector, song_selected, songs
         
         # Adjust the search offset according to the button pressed
         if interaction.data['custom_id'] == "prev_button":
-            song_offset -= song_count;
+            song_offset -= song_count
             if song_offset < 0:
                 song_offset = 0
                 await interaction.response.defer()
@@ -176,9 +171,8 @@ async def search(interaction: discord.Interaction, query: str) -> None:
             song_offset += song_count
 
         # Send our query to the Subsonic API and retrieve a list of songs, backing up the previous page's songs first
-        results = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
         songs_lastpage = songs
-        songs = results['song']
+        songs = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
 
         # If there are no results on this page, go back one page and don't update the response
         if len(songs) == 0:
@@ -248,7 +242,7 @@ async def show_queue(interaction: discord.Interaction) -> None:
 
     # Loop over our queue, adding each song into our output string
     for i, song in enumerate(queue):
-        output += f"{i+1}. **{song['title']}** - *{song['artist']}*\n{song['album']} ({song['duration']})\n\n"
+        output += f"{i+1}. **{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})\n\n"
 
     # Check if our output string is empty & update it 
     if output == "":
