@@ -3,7 +3,6 @@
 import atexit
 import discord
 import os
-import signal
 
 import data
 import playback
@@ -320,6 +319,3 @@ def exit_handler():
     data.save_guild_properties_to_disk()
 
 atexit.register(exit_handler)
-signal.signal(signal.SIGINT, exit_handler)
-signal.signal(signal.SIGTERM, exit_handler)
-signal.signal(signal.SIGQUIT, exit_handler)

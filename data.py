@@ -40,6 +40,7 @@ class GuildProperties():
     @autoplay_mode.setter
     def autoplay_mode(self, value: AutoplayMode) -> None:
         self._properties["autoplay-mode"] = value
+        save_guild_properties_to_disk()
 
 _guild_instances: dict[int, GuildProperties] = {} # Dictionary to store properties for each guild instance
 
