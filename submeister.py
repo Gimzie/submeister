@@ -16,7 +16,7 @@ load_dotenv(os.path.relpath("data.env"))
 
 data.load_guild_properties_from_disk()
 
-# Get Discord bot detailss
+# Get Discord bot details
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 # Get the guild id to populate commands to, if specified
@@ -51,10 +51,7 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
 
     # Check if user is in voice channel
     if interaction.user.voice is None:
-
-        # Display error if user is not in voice channel
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Please connect to a voice channel and try again.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ui.ErrMsg.user_not_in_voice_channel(interaction)
         return
 
     # Open a voice channel connection
@@ -65,38 +62,27 @@ async def play(interaction: discord.Interaction, query: str=None) -> None:
 
         # Display error if queue is empty & autoplay is disabled
         if data.guild_properties(interaction.guild_id).queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode == data.AutoplayMode.NONE:
-            embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Queue is empty.")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await ui.ErrMsg.queue_is_empty(interaction)
             return
 
         # Begin playback of queue
-        embed = discord.Embed(color=discord.Color.orange(), title="Starting playback")
-        await interaction.response.send_message(embed=embed)
+        await ui.SysMsg.starting_queue_playback(interaction)
         await playback.play_audio_queue(interaction, voice_client)
         return
 
     # Send our query to the subsonic API and retrieve a list of 1 song
     songs = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
 
-    # Check if we received any results
+    # Display an error if the query returned no results
     if len(songs) == 0:
-        
-        # Display an error if the query returned no results
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"No results found for **{query}**.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ui.ErrMsg.msg(interaction, f"No result found for **{query}**.")
         return
 
     # Take the first result
     song = songs[0]
 
-    # Stream the top-most track & inform the user
-    await playback.stream_track(interaction, song.id, voice_client)
-
-    # Create an embed that shows the selected song has been added to queue
-    now_playing = f"**{song.title}** - *{song.artist}*"
-
-    embed = discord.Embed(color=discord.Color.orange(), title="Now playing:", description=f"{now_playing}")
-    await interaction.response.send_message(embed=embed)
+    # Stream the top-most track
+    await playback.stream_track(interaction, song, voice_client)
 
 
 @command_tree.command(name="search", description="Search for a track", guild=DISCORD_TEST_GUILD)
@@ -113,8 +99,7 @@ async def search(interaction: discord.Interaction, query: str) -> None:
 
     # Display an error if the query returned no results
     if len(songs) == 0:
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description=f"No results found for **{query}**.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ui.ErrMsg.msg(interaction, f"No results found for **{query}**.")
         return
 
     # Create a view for our response
@@ -137,12 +122,8 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         queue = data.guild_properties(interaction.guild_id).queue
         queue.append(selected_song)
         
-        # Create a confirmation embed
-        selection_str = f"**{selected_song.title}** - *{selected_song.artist}*\n{selected_song.album} ({selected_song.duration_printable})"
-        selection_embed = discord.Embed(color=discord.Color.orange(), title=f"{interaction.user.display_name} added selection to queue", description=f"{selection_str}")
-
-        # Update the message to show the confirmation embed
-        await interaction.response.send_message(embed=selection_embed)
+        # Let the user know a track has been added to the queue
+        await ui.SysMsg.added_to_queue(interaction, selected_song)
 
         # If the bot is connected to a voice channel, start queue playback
         voice_client = await playback.get_voice_client(interaction)
@@ -221,17 +202,14 @@ async def stop(interaction: discord.Interaction) -> None:
 
     # Check if our voice client is connected
     if voice_client is None:
-        # Display error message if our client is not connected
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Not currently connected to a voice channel.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ui.ErrMsg.bot_not_in_voice_channel(interaction)
         return
 
     # Disconnect the voice client
     await interaction.guild.voice_client.disconnect()
 
     # Display disconnect confirmation
-    embed = discord.Embed(color=discord.Color.orange(), title="Disconnected from the active voice channel.")
-    await interaction.response.send_message(embed=embed)
+    await ui.SysMsg.disconnected(interaction)
 
 
 @command_tree.command(name="show-queue", description="View the current queue", guild=DISCORD_TEST_GUILD)
@@ -248,25 +226,21 @@ async def show_queue(interaction: discord.Interaction) -> None:
     for i, song in enumerate(queue):
         output += f"{i+1}. **{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})\n\n"
 
-    # Check if our output string is empty & update it 
+    # Check if our output string is empty & update it accordingly
     if output == "":
         output = "Queue is empty!"
     
-    # Create an embed that displays our output string
-    queue_embed = discord.Embed(color=discord.Color.orange(), title="Current queue:", description=output)
-    await interaction.response.send_message(embed=queue_embed)
+    # Show the user their queue
+    await ui.SysMsg.msg(interaction, "Queue", output)
 
 @command_tree.command(name="clear-queue", description="Clear the queue", guild=DISCORD_TEST_GUILD)
 async def clear_queue(interaction: discord.Interaction) -> None:
     '''Clear the queue'''
-
-    # Clear the queue
     queue = data.guild_properties(interaction.guild_id).queue
     queue.clear()
 
     # Let the user know that the queue has been cleared
-    queue_embed = discord.Embed(color=discord.Color.orange(), title=f"{interaction.user.display_name} cleared the queue")
-    await interaction.response.send_message(embed=queue_embed)
+    await ui.SysMsg.queue_cleared(interaction)
 
 
 @command_tree.command(name="skip", description="Skip the current track", guild=DISCORD_TEST_GUILD)
@@ -276,24 +250,21 @@ async def skip(interaction: discord.Interaction) -> None:
     # Get the voice client instance
     voice_client = await playback.get_voice_client(interaction)
 
-    # Respond with an error message if the bot is not connected to a voice channel
+    # Check if the bot is connected to a voice channel
     if voice_client is None:
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="Not connected to a voice channel.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ui.ErrMsg.bot_not_in_voice_channel(interaction)
         return
 
-    # Respond with an error message if nothing is currently playing
+    # Check if the bot is playing music
     if not voice_client.is_playing():
-        embed = discord.Embed(color=discord.Color.orange(), title="Error", description="No track currently playing.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ui.ErrMsg.not_playing(interaction)
         return
 
     # Stop the current song
     voice_client.stop()
 
     # Display confirmation message
-    queue_embed = discord.Embed(color=discord.Color.orange(), title="Skipping...")
-    await interaction.response.send_message(embed=queue_embed)
+    await ui.SysMsg.skipping(interaction)
 
 
 @command_tree.command(name="autoplay", description="Toggles autoplay", guild=DISCORD_TEST_GUILD)
@@ -317,10 +288,9 @@ async def autoplay(interaction: discord.Interaction, mode: app_commands.Choice[s
     
     # Display message indicating new status of autoplay
     if (mode.value == 'none'):
-        embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay disabled by {interaction.user.display_name}")
+        await ui.SysMsg.msg(interaction, f"Autoplay disabled by {interaction.user.display_name}")
     else:
-        embed = discord.Embed(color=discord.Color.orange(), title=f"Autoplay enabled by {interaction.user.display_name}", description=f"Autoplay mode: **{mode.name}**")
-    await interaction.response.send_message(embed=embed)
+        await ui.SysMsg.msg(interaction, f"Autoplay enabled by {interaction.user.display_name}", f"Autoplay mode: **{mode.name}**")
 
     # If the bot is connected to a voice channel and autoplay is enabled, start queue playback
     voice_client = await playback.get_voice_client(interaction)
