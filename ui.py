@@ -4,20 +4,32 @@ import discord
 
 import data
 
+import subsonic
 from subsonic import Song
+
 
 # For sending generic system messages
 class SysMsg():
-    async def msg(interaction: discord.Interaction, header: str, message: str=None) -> None:
+    async def msg(interaction: discord.Interaction, header: str, message: str=None, thumbnail: str=None) -> None:
         embed = discord.Embed(color=discord.Color.orange(), title=header, description=message)
-        if interaction.response.is_done():
-            await interaction.followup.send(embed=embed)
-        else:
-            await interaction.response.send_message(embed=embed)
+        file = discord.utils.MISSING;
 
+        # Attach a thumbnail if one was provided (as a local file)
+        if thumbnail is not None:
+            file = discord.File(thumbnail, filename="image.png")
+            embed.set_thumbnail(url="attachment://image.png")
+
+        if interaction.response.is_done():
+            await interaction.followup.send(file=file, embed=embed)
+        else:
+            await interaction.response.send_message(file=file, embed=embed)
+
+    @classmethod
     async def playing(cls, interaction: discord.Interaction) -> None:
-        song = data.GuildData.current_song
-        await cls.msg(interaction, "Playing", f"**{song.title}** - *{song.artist}*")
+        song = data.guild_data(interaction.guild_id).current_song
+        cover_art = subsonic.get_album_art_file(song.cover_id)
+        desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
+        await cls.msg(interaction, "Playing:", desc, cover_art)
 
     @classmethod
     async def playback_ended(cls, interaction: discord.Interaction) -> None:
@@ -77,7 +89,7 @@ class ErrMsg():
 
 
 
-# Methods for parsing data to an embed
+# Methods for parsing data to Discord structures
 def parse_search_as_track_selection_embed(results: list[Song], query: str, page_num: int) -> discord.Embed:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord embed suitable for track selection'''
 

@@ -125,6 +125,9 @@ async def search(interaction: discord.Interaction, query: str) -> None:
         # Let the user know a track has been added to the queue
         await ui.SysMsg.added_to_queue(interaction, selected_song)
 
+        # Fetch the cover art in advance
+        subsonic.get_album_art_file(selected_song.cover_id)
+
         # If the bot is connected to a voice channel, start queue playback
         voice_client = await playback.get_voice_client(interaction)
         if voice_client is not None:

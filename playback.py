@@ -27,12 +27,12 @@ async def stream_track(interaction: discord.Interaction, song: Song, voice_clien
     audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.id), **ffmpeg_options)
     audio_src.read()
 
-    # Let the user know the track will play
-    await ui.SysMsg.msg(interaction, "Playing", f"**{song.title}** - *{song.artist}*") # TODO: fix
-
     # Update the currently playing song, and reset the duration
     data.guild_data(interaction.guild_id).current_song = song
     data.guild_data(interaction.guild_id).current_position = 0
+
+    # Let the user know the track will play
+    await ui.SysMsg.playing(interaction)
 
     # TODO: Start a duration timer
 
@@ -81,6 +81,9 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
 
     queue = data.guild_properties(interaction.guild_id).queue
     queue.append(songs[0])
+
+    # Fetch the cover art in advance
+    subsonic.get_album_art_file(songs[0].cover_id)
 
 
 async def play_audio_queue(interaction: discord.Interaction, voice_client: discord.VoiceClient) -> None:
