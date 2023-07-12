@@ -24,7 +24,7 @@ async def stream_track(interaction: discord.Interaction, song: Song, voice_clien
 
     # Get the stream from the Subsonic server, using the provided song's ID
     ffmpeg_options = {"before_options": "", "options": "-filter:a volume=replaygain=track"}
-    audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.id), **ffmpeg_options)
+    audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.song_id), **ffmpeg_options)
     audio_src.read()
 
     # Update the currently playing song, and reset the duration
@@ -39,22 +39,6 @@ async def stream_track(interaction: discord.Interaction, song: Song, voice_clien
     # Begin playing the song
     loop = asyncio.get_event_loop()
     voice_client.play(audio_src, after=lambda error: asyncio.run_coroutine_threadsafe(play_audio_queue(interaction, voice_client), loop)) # TODO: probably should handle error
-
-
-async def get_voice_client(interaction: discord.Interaction, *, should_connect: bool=False) -> discord.VoiceClient:
-    ''' Returns a voice client instance for the current guild '''
-
-    # Get the voice client for the guild
-    voice_client = discord.utils.get(data.sm_client.voice_clients, guild=interaction.guild)
-
-    # Connect to a voice channel
-    if voice_client is None and should_connect:
-        try:
-            voice_client = await interaction.user.voice.channel.connect()
-        except AttributeError:
-            await ui.ErrMsg.cannot_connect_to_voice_channel(interaction)
-
-    return voice_client
 
 
 async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=None):
@@ -72,7 +56,7 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
         case data.AutoplayMode.RANDOM:
             songs = subsonic.get_random_songs(size=1)
         case data.AutoplayMode.SIMILAR:
-            songs = subsonic.get_similar_songs(id=prev_song_id, count=1)        
+            songs = subsonic.get_similar_songs(song_id=prev_song_id, count=1)
 
     # If there's no match, throw an error
     if len(songs) == 0:
@@ -87,10 +71,11 @@ async def handle_autoplay(interaction: discord.Interaction, prev_song_id: str=No
 
 
 async def play_audio_queue(interaction: discord.Interaction, voice_client: discord.VoiceClient) -> None:
+    '''Plays the audio queue'''
 
     # Check if the bot is connected to a voice channel; it's the caller's responsibility to open a voice channel
     if voice_client is None:
-        await ui.ErrMsg.bot_not_in_voice_channel(interaction);
+        await ui.ErrMsg.bot_not_in_voice_channel(interaction)
         return
 
     queue = data.guild_properties(interaction.guild_id).queue
@@ -108,7 +93,7 @@ async def play_audio_queue(interaction: discord.Interaction, voice_client: disco
 
         # If queue will be empty after playback ends, handle autoplay
         if queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode is not data.AutoplayMode.NONE:
-            await handle_autoplay(interaction, song.id)
+            await handle_autoplay(interaction, song.song_id)
         return
 
     # If the queue is empty, playback has ended; we should let the user know
