@@ -3,16 +3,17 @@
 import discord
 
 import data
-
 import subsonic
-from subsonic import Song
 
+class SysMsg:
+    '''A class for sending system messages'''
 
-# For sending generic system messages
-class SysMsg():
+    @staticmethod
     async def msg(interaction: discord.Interaction, header: str, message: str=None, thumbnail: str=None) -> None:
+        '''Generic message function. Creates a message formatted as an embed'''
+
         embed = discord.Embed(color=discord.Color.orange(), title=header, description=message)
-        file = discord.utils.MISSING;
+        file = discord.utils.MISSING
 
         # Attach a thumbnail if one was provided (as a local file)
         if thumbnail is not None:
@@ -24,73 +25,93 @@ class SysMsg():
         else:
             await interaction.response.send_message(file=file, embed=embed)
 
-    @classmethod
-    async def playing(cls, interaction: discord.Interaction) -> None:
+    @staticmethod
+    async def playing(interaction: discord.Interaction) -> None:
+        '''Sends a message containing the currently playing song'''
         song = data.guild_data(interaction.guild_id).current_song
         cover_art = subsonic.get_album_art_file(song.cover_id)
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
-        await cls.msg(interaction, "Playing:", desc, cover_art)
+        await __class__.msg(interaction, "Playing:", desc, cover_art)
 
-    @classmethod
-    async def playback_ended(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Playback ended")
-    
-    @classmethod
-    async def disconnected(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Disconnected from voice channel")
+    @staticmethod
+    async def playback_ended(interaction: discord.Interaction) -> None:
+        '''Sends a message indicating playback has ended'''
+        await __class__.msg(interaction, "Playback ended")
 
-    @classmethod
-    async def starting_queue_playback(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Started queue playback")
+    @staticmethod
+    async def disconnected(interaction: discord.Interaction) -> None:
+        '''Sends a message indicating disconnected from voice channel'''
+        await __class__.msg(interaction, "Disconnected from voice channel")
 
-    @classmethod
-    async def added_to_queue(cls, interaction: discord.Interaction, song: Song) -> None:
+    @staticmethod
+    async def starting_queue_playback(interaction: discord.Interaction) -> None:
+        '''Sends a message indicating queue playback has started'''
+        await __class__.msg(interaction, "Started queue playback")
+
+    @staticmethod
+    async def added_to_queue(interaction: discord.Interaction, song: subsonic.Song) -> None:
+        '''Sends a message indicating the selected song was added to queue'''
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
-        await cls.msg(interaction, f"{interaction.user.display_name} added track to queue", desc)
-    
-    @classmethod
-    async def queue_cleared(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, f"{interaction.user.display_name} cleared the queue")
-    
-    @classmethod
-    async def skipping(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Skipped track")
+        await __class__.msg(interaction, f"{interaction.user.display_name} added track to queue", desc)
+
+    @staticmethod
+    async def queue_cleared(interaction: discord.Interaction) -> None:
+        '''Sends a message indicating a user cleared the queue'''
+        await __class__.msg(interaction, f"{interaction.user.display_name} cleared the queue")
+
+    @staticmethod
+    async def skipping(interaction: discord.Interaction) -> None:
+        '''Sends a message indicating the current song was skipped'''
+        await __class__.msg(interaction, "Skipped track")
 
 
-# For sending standard error messages
-class ErrMsg():
+class ErrMsg:
+    '''A class for sending error messages'''
+
+    @staticmethod
     async def msg(interaction: discord.Interaction, message: str) -> None:
+        '''Generic message function. Creates an error message formatted as an embed'''
         embed = discord.Embed(color=discord.Color.orange(), title="Error", description=message)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @classmethod
-    async def user_not_in_voice_channel(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "You are not connected to a voice channel.")
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @classmethod
-    async def bot_not_in_voice_channel(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Not currently connected to a voice channel.")
+    @staticmethod
+    async def user_not_in_voice_channel(interaction: discord.Interaction) -> None:
+        '''Sends an error message indicating user is not in a voice channel'''
+        await __class__.msg(interaction, "You are not connected to a voice channel.")
 
-    @classmethod
-    async def cannot_connect_to_voice_channel(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Cannot connect to voice channel.")
+    @staticmethod
+    async def bot_not_in_voice_channel(interaction: discord.Interaction) -> None:
+        '''Sends an error message indicating bot is connect to a voice channel'''
+        await __class__.msg(interaction, "Not currently connected to a voice channel.")
 
-    @classmethod
-    async def queue_is_empty(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Queue is empty.")
+    @staticmethod
+    async def cannot_connect_to_voice_channel(interaction: discord.Interaction) -> None:
+        '''Sends an error message indicating bot is unable to connect to a voice channel'''
+        await __class__.msg(interaction, "Cannot connect to voice channel.")
 
-    @classmethod
-    async def already_playing(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "Already playing.")
-    
-    @classmethod
-    async def not_playing(cls, interaction: discord.Interaction) -> None:
-        await cls.msg(interaction, "No track is playing.")
+    @staticmethod
+    async def queue_is_empty(interaction: discord.Interaction) -> None:
+        '''Sends an error message indicating the queue is empty'''
+        await __class__.msg(interaction, "Queue is empty.")
+
+    @staticmethod
+    async def already_playing(interaction: discord.Interaction) -> None:
+        '''Sends an error message indicating that music is already playing'''
+        await __class__.msg(interaction, "Already playing.")
+
+    @staticmethod
+    async def not_playing(interaction: discord.Interaction) -> None:
+        '''Sends an error message indicating nothing is playing'''
+        await __class__.msg(interaction, "No track is playing.")
 
 
 
 # Methods for parsing data to Discord structures
-def parse_search_as_track_selection_embed(results: list[Song], query: str, page_num: int) -> discord.Embed:
+def parse_search_as_track_selection_embed(results: list[subsonic.Song], query: str, page_num: int) -> discord.Embed:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord embed suitable for track selection'''
 
     options_str = ""
@@ -106,7 +127,7 @@ def parse_search_as_track_selection_embed(results: list[Song], query: str, page_
         # Only trim the longest tag on the first line
         top_str_length = len(song.title + ' - ' + song.artist)
         if top_str_length > 71:
-            
+
             if tr_title > tr_artist:
                 tr_title = song.title[:(68 - top_str_length)] + '...'
             else:
@@ -122,7 +143,7 @@ def parse_search_as_track_selection_embed(results: list[Song], query: str, page_
     return discord.Embed(color=discord.Color.orange(), title=f"Results for: {query}", description=options_str)
 
 
-def parse_search_as_track_selection_options(results: list[Song]) -> list[discord.SelectOption]:
+def parse_search_as_track_selection_options(results: list[subsonic.Song]) -> list[discord.SelectOption]:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord selection list for tracks'''
 
     select_options = []
