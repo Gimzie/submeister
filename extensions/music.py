@@ -48,8 +48,13 @@ class MusicCog(commands.Cog):
             await ui.ErrMsg.user_not_in_voice_channel(interaction)
             return
 
-        # Open a voice channel connection
+        # Get a valid voice channel connection
         voice_client = await self.get_voice_client(interaction, should_connect=True)
+
+        # Don't attempt playback if the bot is already playing
+        if voice_client.is_playing() and query is None:
+            await ui.ErrMsg.already_playing(interaction);
+            return
 
         # Check queue if no query is provided
         if query is None:
@@ -71,12 +76,13 @@ class MusicCog(commands.Cog):
         if len(songs) == 0:
             await ui.ErrMsg.msg(interaction, f"No result found for **{query}**.")
             return
+        
+        # Add the first result to the queue and handle queue playback
+        queue = data.guild_properties(interaction.guild_id).queue
+        queue.append(songs[0])
 
-        # Take the first result
-        song = songs[0]
-
-        # Stream the top-most track
-        await playback.stream_track(interaction, song, voice_client)
+        await ui.SysMsg.added_to_queue(interaction, songs[0])
+        await playback.play_audio_queue(interaction, voice_client)
 
 
     @app_commands.command(name="search", description="Search for a track")
@@ -122,10 +128,9 @@ class MusicCog(commands.Cog):
             # Fetch the cover art in advance
             subsonic.get_album_art_file(selected_song.cover_id)
 
-            # If the bot is connected to a voice channel, start queue playback
+            # Attempt to play the audio queue
             voice_client = await self.get_voice_client(interaction)
-            if voice_client is not None:
-                await playback.play_audio_queue(interaction, voice_client)
+            await playback.play_audio_queue(interaction, voice_client)
 
 
         # Assign the song_selected callback to the select menu
@@ -229,6 +234,7 @@ class MusicCog(commands.Cog):
 
         # Show the user their queue
         await ui.SysMsg.msg(interaction, "Queue", output)
+
 
     @app_commands.command(name="clear-queue", description="Clear the queue")
     async def clear_queue(self, interaction: discord.Interaction) -> None:

@@ -77,6 +77,10 @@ async def play_audio_queue(interaction: discord.Interaction, voice_client: disco
     if voice_client is None:
         await ui.ErrMsg.bot_not_in_voice_channel(interaction)
         return
+    
+    # Check if the bot is already playing something
+    if voice_client.is_playing():
+        return
 
     queue = data.guild_properties(interaction.guild_id).queue
 
