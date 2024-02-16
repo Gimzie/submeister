@@ -1,4 +1,4 @@
-'''An extention allowing for music playback functionality'''
+''' An extention allowing for music playback functionality '''
 
 import logging
 import discord
@@ -7,7 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 import data
-import playback
+import player
 import subsonic
 import ui
 
@@ -16,7 +16,7 @@ from submeister import SubmeisterClient
 logger = logging.getLogger(__name__)
 
 class MusicCog(commands.Cog):
-    '''A Cog containing music playback commands'''
+    ''' A Cog containing music playback commands '''
 
     bot : SubmeisterClient
 
@@ -56,17 +56,20 @@ class MusicCog(commands.Cog):
             await ui.ErrMsg.already_playing(interaction);
             return
 
+        # Get the guild's player
+        player = data.guild_data(interaction.guild_id).player
+
         # Check queue if no query is provided
         if query is None:
 
             # Display error if queue is empty & autoplay is disabled
-            if data.guild_properties(interaction.guild_id).queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode == data.AutoplayMode.NONE:
+            if player.queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode == data.AutoplayMode.NONE:
                 await ui.ErrMsg.queue_is_empty(interaction)
                 return
 
             # Begin playback of queue
             await ui.SysMsg.starting_queue_playback(interaction)
-            await playback.play_audio_queue(interaction, voice_client)
+            await player.play_audio_queue(interaction, voice_client)
             return
 
         # Send our query to the subsonic API and retrieve a list of 1 song
@@ -78,11 +81,10 @@ class MusicCog(commands.Cog):
             return
         
         # Add the first result to the queue and handle queue playback
-        queue = data.guild_properties(interaction.guild_id).queue
-        queue.append(songs[0])
+        player.queue.append(songs[0])
 
         await ui.SysMsg.added_to_queue(interaction, songs[0])
-        await playback.play_audio_queue(interaction, voice_client)
+        await player.play_audio_queue(interaction, voice_client)
 
 
     @app_commands.command(name="search", description="Search for a track")
@@ -118,9 +120,11 @@ class MusicCog(commands.Cog):
             # Get the song selected by the user
             selected_song = songs[int(song_selector.values[0])]
 
+            # Get the guild's player
+            player = data.guild_data(interaction.guild_id).player
+
             # Add the selected song to the queue
-            queue = data.guild_properties(interaction.guild_id).queue
-            queue.append(selected_song)
+            player.queue.append(selected_song)
 
             # Let the user know a track has been added to the queue
             await ui.SysMsg.added_to_queue(interaction, selected_song)
@@ -130,7 +134,7 @@ class MusicCog(commands.Cog):
 
             # Attempt to play the audio queue
             voice_client = await self.get_voice_client(interaction)
-            await playback.play_audio_queue(interaction, voice_client)
+            await player.play_audio_queue(interaction, voice_client)
 
 
         # Assign the song_selected callback to the select menu
@@ -148,13 +152,13 @@ class MusicCog(commands.Cog):
             nonlocal song_count, song_offset, song_selector, song_selected, songs
 
             # Adjust the search offset according to the button pressed
-            if interaction.data['custom_id'] == "prev_button":
+            if interaction.data["custom_id"] == "prev_button":
                 song_offset -= song_count
                 if song_offset < 0:
                     song_offset = 0
                     await interaction.response.defer()
                     return
-            elif interaction.data['custom_id'] == "next_button":
+            elif interaction.data["custom_id"] == "next_button":
                 song_offset += song_count
 
             # Send our query to the Subsonic API and retrieve a list of songs, backing up the previous page's songs first
@@ -239,7 +243,7 @@ class MusicCog(commands.Cog):
     @app_commands.command(name="clear-queue", description="Clear the queue")
     async def clear_queue(self, interaction: discord.Interaction) -> None:
         '''Clear the queue'''
-        queue = data.guild_properties(interaction.guild_id).queue
+        queue = data.guild_data(interaction.guild_id).player.queue
         queue.clear()
 
         # Let the user know that the queue has been cleared
@@ -273,24 +277,24 @@ class MusicCog(commands.Cog):
     @app_commands.command(name="autoplay", description="Toggles autoplay")
     @app_commands.describe(mode="Determines the method to use when autoplaying")
     @app_commands.choices(mode=[
-        app_commands.Choice(name="None", value='none'),
-        app_commands.Choice(name="Random", value='random'),
-        app_commands.Choice(name="Similar", value='similar'),
+        app_commands.Choice(name="None", value="none"),
+        app_commands.Choice(name="Random", value="random"),
+        app_commands.Choice(name="Similar", value="similar"),
     ])
     async def autoplay(self, interaction: discord.Interaction, mode: app_commands.Choice[str]) -> None:
         ''' Toggles autoplay '''
 
         # Update the autoplay properties
         match mode.value:
-            case 'none':
+            case "none":
                 data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.NONE
-            case 'random':
+            case "random":
                 data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.RANDOM
-            case 'similar':
+            case "similar":
                 data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.SIMILAR
 
         # Display message indicating new status of autoplay
-        if mode.value == 'none':
+        if mode.value == "none":
             await ui.SysMsg.msg(interaction, f"Autoplay disabled by {interaction.user.display_name}")
         else:
             await ui.SysMsg.msg(interaction, f"Autoplay enabled by {interaction.user.display_name}", f"Autoplay mode: **{mode.name}**")
@@ -298,9 +302,10 @@ class MusicCog(commands.Cog):
         # If the bot is connected to a voice channel and autoplay is enabled, start queue playback
         voice_client = await self.get_voice_client(interaction)
         if voice_client is not None and not voice_client.is_playing():
-            await playback.play_audio_queue(interaction, voice_client)
+            player = data.guild_data(interaction.guild_id).player
+            await player.play_audio_queue(interaction, voice_client)
 
 async def setup(bot: SubmeisterClient):
-    '''Setup function for the music.py cog'''
+    ''' Setup function for the music.py cog '''
 
     await bot.add_cog(MusicCog(bot))

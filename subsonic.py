@@ -1,4 +1,4 @@
-'''For interfacing with the Subsonic API'''
+''' For interfacing with the Subsonic API '''
 
 import logging
 import os
@@ -22,54 +22,54 @@ SUBSONIC_REQUEST_PARAMS = {
 
 
 class Song():
-    '''Object representing a song returned from the subsonic api'''
+    ''' Object representing a song returned from the Subsonic API '''
     def __init__(self, json_object: dict) -> None:
         #! Other properties exist in the initial json response but are currently unused by Submeister and thus aren't supported here
-        self._id: str = json_object['id'] if 'id' in json_object else ''
-        self._title: str = json_object['title'] if 'title' in json_object else 'Unknown Track'
-        self._album: str = json_object['album'] if 'album' in json_object else 'Unknown Album'
-        self._artist: str = json_object['artist'] if 'artist' in json_object else 'Unknown Artist'
-        self._cover_id: str = json_object['coverArt'] if 'coverArt' in json_object else ''
-        self._duration: int = json_object['duration'] if 'duration' in json_object else 0
+        self._id: str = json_object["id"] if "id" in json_object else ""
+        self._title: str = json_object["title"] if "title" in json_object else "Unknown Track"
+        self._album: str = json_object["album"] if "album" in json_object else "Unknown Album"
+        self._artist: str = json_object["artist"] if "artist" in json_object else "Unknown Artist"
+        self._cover_id: str = json_object["coverArt"] if "coverArt" in json_object else ""
+        self._duration: int = json_object["duration"] if "duration" in json_object else 0
 
     @property
     def song_id(self) -> str:
-        '''The song's id'''
+        ''' The song's id '''
         return self._id
 
     @property
     def title(self) -> str:
-        '''The song's title'''
+        ''' The song's title '''
         return self._title
 
     @property
     def album(self) -> str:
-        '''The album containing the song'''
+        ''' The album containing the song '''
         return self._album
 
     @property
     def artist(self) -> str:
-        '''The song's artist'''
+        ''' The song's artist '''
         return self._artist
 
     @property
     def cover_id(self) -> str:
-        '''The id of the cover art used by the song'''
+        ''' The id of the cover art used by the song '''
         return self._cover_id
 
     @property
     def duration(self) -> int:
-        '''The total duration of the song'''
+        ''' The total duration of the song '''
         return self._duration
 
     @property
     def duration_printable(self) -> str:
-        '''The total duration of the song as a human readable string in the format `mm:ss`'''
+        ''' The total duration of the song as a human readable string in the format `mm:ss` '''
         return f"{(self._duration // 60):02d}:{(self._duration % 60):02d}"
 
 
 def check_subsonic_error(response: requests.Response) -> bool:
-    '''Checks and logs error codes returned by the subsonic API. Returns True if an error is present'''
+    ''' Checks and logs error codes returned by the subsonic API. Returns True if an error is present. '''
 
     try:
         json = response.json()
@@ -77,7 +77,7 @@ def check_subsonic_error(response: requests.Response) -> bool:
         return False
 
     try:
-        err_code: int = json['subsonic-response']['error']['code']
+        err_code: int = json["subsonic-response"]["error"]["code"]
     except KeyError:
         return False
 
@@ -128,7 +128,7 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
     search_data = response.json()
 
     results: list[Song] = []
-    for item in search_data["subsonic-response"]["searchResult3"]['song']:
+    for item in search_data["subsonic-response"]["searchResult3"]["song"]:
         results.append(Song(item))
 
     return results
@@ -153,9 +153,6 @@ def get_album_art_file(cover_id: str, size: int=300) -> str:
     if check_subsonic_error(response):
         return "resources/cover_not_found.jpg"
 
-    # with open(target_path, "wb") as file:
-    #     file.write(response.content)
-    #     return target_path
     file = Path(target_path)
     file.parent.mkdir(exist_ok=True, parents=True)
     file.write_bytes(response.content)
@@ -188,7 +185,7 @@ def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_ye
     search_data = response.json()
 
     results: list[Song] = []
-    for item in search_data["subsonic-response"]["randomSongs"]['song']:
+    for item in search_data["subsonic-response"]["randomSongs"]["song"]:
         results.append(Song(item))
 
     return results
@@ -206,7 +203,7 @@ def get_similar_songs(song_id: str, count: int=50) -> list[Song]:
     search_data = response.json()
 
     results: list[Song] = []
-    for item in search_data["subsonic-response"]["similarSongs2"]['song']:
+    for item in search_data["subsonic-response"]["similarSongs2"]["song"]:
         results.append(Song(item))
 
     return results

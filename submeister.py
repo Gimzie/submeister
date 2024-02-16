@@ -1,4 +1,4 @@
-'''Submeister - A Discord bot that streams music from your personal Subsonic server.'''
+''' Submeister - A Discord bot that streams music from your personal Subsonic server. '''
 
 import logging
 import os
@@ -14,9 +14,9 @@ from util import env
 from util import logs
 
 class SubmeisterClient(commands.Bot):
-    '''An instance of the submeister client'''
+    ''' An instance of the submeister client '''
 
-    test_guild : int
+    test_guild: int
 
     def __init__(self, test_guild: int=None) -> None:
         self.test_guild = test_guild
@@ -24,13 +24,13 @@ class SubmeisterClient(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned, intents=discord.Intents.all())
 
     async def load_extensions(self) -> None:
-        '''Auto-loads all extensions present within the `./extensions` directory.'''
+        ''' Auto-loads all extensions present within the `./extensions` directory. '''
 
-        for file in os.listdir('./extensions'):
-            if file.endswith('.py'):
+        for file in os.listdir("./extensions"):
+            if file.endswith(".py"):
                 ext_name = file[:-3]
                 try:
-                    await self.load_extension(f'extensions.{ext_name}')
+                    await self.load_extension(f"extensions.{ext_name}")
                 except commands.errors.ExtensionError as err:
                     if isinstance(err, commands.errors.ExtensionNotFound):
                         logger.warning("Failed to load extension '%s'. Extension was not found.", ext_name)
@@ -44,14 +44,14 @@ class SubmeisterClient(commands.Bot):
                     logger.info("Extension '%s' loaded successfully.", ext_name)
 
     async def sync_command_tree(self) -> None:
-        '''Synchronizes the command tree with the guild used for testing.'''
+        ''' Synchronizes the command tree with the guild used for testing. '''
 
         guild = discord.Object(self.test_guild)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
 
     async def setup_hook(self) -> None:
-        '''Setup done after login, prior to events being dispatched.'''
+        ''' Setup done after login, prior to events being dispatched. '''
 
         await self.load_extensions()
 
@@ -59,11 +59,11 @@ class SubmeisterClient(commands.Bot):
             await self.sync_command_tree()
 
     async def on_ready(self) -> None:
-        '''Event called when the client is done preparing.'''
+        ''' Event called when the client is done preparing. '''
 
         logger.info("Logged as: %s | Connected Guilds: %s | Loaded Extensions: %s", self.user, len(self.guilds), list(self.extensions))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logs.setup_logging()
     logger = logging.getLogger(__name__)
 
@@ -74,6 +74,6 @@ if __name__ == '__main__':
 
 @atexit.register
 def exit_handler():
-    '''Function ran on application exit.'''
+    ''' Function ran on application exit. '''
 
     data.save_guild_properties_to_disk()
