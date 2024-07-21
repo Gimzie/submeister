@@ -45,7 +45,11 @@ def guild_data(guild_id: int) -> GuildData:
 
     # Create & store new data object if guild does not already exist
     data = GuildData()
-    data.player.queue = guild_properties(guild_id).queue
+
+    # Load queue from disk if it exists
+    if guild_properties(guild_id).queue is not None:
+        data.player.queue = guild_properties(guild_id).queue
+
     _guild_data_instances[guild_id] = data
     return _guild_data_instances[guild_id]
 

@@ -223,7 +223,7 @@ class MusicCog(commands.Cog):
         ''' Show the current queue '''
 
         # Get the audio queue for the current guild
-        queue = data.guild_properties(interaction.guild_id).queue
+        queue = data.guild_data(interaction.guild_id).player.queue
 
         # Create a string to store the output of our queue
         output = ""
