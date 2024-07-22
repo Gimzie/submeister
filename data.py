@@ -1,5 +1,9 @@
 ''' Data used throughout the application '''
 
+''' 
+    TODO: Save one properties pickle file per-guild, instead of saving all in one file at once
+'''
+
 import logging
 import os
 import pickle
@@ -80,11 +84,14 @@ class GuildProperties():
     @autoplay_mode.setter
     def autoplay_mode(self, value: AutoplayMode) -> None:
         self._properties["autoplay-mode"] = value
-        save_guild_properties_to_disk()
 
     @property
     def queue(self) -> list[Song]:
         return self._properties["queue"]
+
+    @queue.setter
+    def queue(self, value: list[Song]) -> None:
+        self._properties["queue"] = value
 
 
 _guild_property_instances: dict[int, GuildProperties] = {} # Dictionary to store properties for each guild instance
@@ -103,6 +110,10 @@ def guild_properties(guild_id: int) -> GuildProperties:
 
 def save_guild_properties_to_disk() -> None:
     ''' Saves guild properties to disk. '''
+
+    # Copy the queues from each guild data into each guild property
+    for guild_id, properties in _guild_property_instances.items():
+        properties.queue = guild_data(guild_id).player.queue
 
     with open("guild_properties.pickle", "wb") as file:
         try:

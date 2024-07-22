@@ -45,16 +45,14 @@ class MusicCog(commands.Cog):
 
         # Check if user is in voice channel
         if interaction.user.voice is None:
-            await ui.ErrMsg.user_not_in_voice_channel(interaction)
-            return
+            return await ui.ErrMsg.user_not_in_voice_channel(interaction)
 
         # Get a valid voice channel connection
         voice_client = await self.get_voice_client(interaction, should_connect=True)
 
         # Don't attempt playback if the bot is already playing
         if voice_client.is_playing() and query is None:
-            await ui.ErrMsg.already_playing(interaction);
-            return
+            return await ui.ErrMsg.already_playing(interaction)
 
         # Get the guild's player
         player = data.guild_data(interaction.guild_id).player
@@ -64,8 +62,7 @@ class MusicCog(commands.Cog):
 
             # Display error if queue is empty & autoplay is disabled
             if player.queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode == data.AutoplayMode.NONE:
-                await ui.ErrMsg.queue_is_empty(interaction)
-                return
+                return await ui.ErrMsg.queue_is_empty(interaction)
 
             # Begin playback of queue
             await ui.SysMsg.starting_queue_playback(interaction)
@@ -117,6 +114,12 @@ class MusicCog(commands.Cog):
 
         # Callback to handle interaction with a select item
         async def song_selected(interaction: discord.Interaction) -> None:
+            voice_client = await self.get_voice_client(interaction)
+
+            # Don't allow users who aren't in a voice channel with the bot to queue tracks
+            if voice_client is not None and interaction.user.status is None:
+                return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
             # Get the song selected by the user
             selected_song = songs[int(song_selector.values[0])]
 
@@ -132,9 +135,9 @@ class MusicCog(commands.Cog):
             # Fetch the cover art in advance
             subsonic.get_album_art_file(selected_song.cover_id)
 
-            # Attempt to play the audio queue
-            voice_client = await self.get_voice_client(interaction)
-            await player.play_audio_queue(interaction, voice_client)
+            # Attempt to play the audio queue, if the bot is in the voice channel
+            if voice_client is not None:
+                await player.play_audio_queue(interaction, voice_client)
 
 
         # Assign the song_selected callback to the select menu

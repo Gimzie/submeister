@@ -4,6 +4,11 @@ import discord
 
 import data
 import subsonic
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 
 class SysMsg:
     ''' A class for sending system messages '''
@@ -20,10 +25,19 @@ class SysMsg:
             file = discord.File(thumbnail, filename="image.png")
             embed.set_thumbnail(url="attachment://image.png")
 
-        if interaction.response.is_done():
-            await interaction.followup.send(file=file, embed=embed)
-        else:
-            await interaction.response.send_message(file=file, embed=embed)
+        # Attempt to send the error message, up to 3 times
+        attempt = 0
+        while attempt < 3:
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(file=file, embed=embed)
+                else:
+                    await interaction.response.send_message(file=file, embed=embed)
+                return
+            except discord.NotFound:
+                logger.warning("Attempt %d at sending a system message failed...", attempt+1)
+                attempt += 1
+
 
     @staticmethod
     async def playing(interaction: discord.Interaction) -> None:

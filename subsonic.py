@@ -128,8 +128,12 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
     search_data = response.json()
 
     results: list[Song] = []
-    for item in search_data["subsonic-response"]["searchResult3"]["song"]:
-        results.append(Song(item))
+
+    try:
+        for item in search_data["subsonic-response"]["searchResult3"]["song"]:
+            results.append(Song(item))
+    except KeyError:
+        return []
 
     return results
 

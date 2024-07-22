@@ -66,7 +66,8 @@ class Player():
             return
 
         # Get the stream from the Subsonic server, using the provided song's ID
-        ffmpeg_options = {"before_options": "", "options": "-filter:a volume=replaygain=track"}
+        ffmpeg_options = {"before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                           "options": "-filter:a volume=replaygain=track"}
         audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.song_id), **ffmpeg_options)
         audio_src.read()
 
