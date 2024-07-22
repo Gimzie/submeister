@@ -69,7 +69,7 @@ class Player():
         ffmpeg_options = {"before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
                            "options": "-filter:a volume=replaygain=track"}
         audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.song_id), **ffmpeg_options)
-        audio_src.read()
+        # audio_src.read()
 
         # Update the currently playing song, and reset the duration
         self.current_song = song
@@ -82,13 +82,24 @@ class Player():
 
         # Begin playing the song
         loop = asyncio.get_event_loop()
-        voice_client.play(audio_src, after=lambda error: asyncio.run_coroutine_threadsafe(self.play_audio_queue(interaction, voice_client), loop)) # TODO: probably should handle error
+
+        # TODO: probably should handle error
+        def playback_finished(error):
+            self.handle_autoplay(interaction, self.current_song.song_id)
+            asyncio.run_coroutine_threadsafe(self.play_audio_queue(interaction, voice_client), loop)
+
+        voice_client.play(audio_src, after=playback_finished)
 
 
     async def handle_autoplay(self, interaction: discord.Interaction, prev_song_id: str=None):
         ''' Handles populating the queue when autoplay is enabled '''
 
         autoplay_mode = data.guild_properties(interaction.guild_id).autoplay_mode
+        queue = data.guild_data(interaction.guild_id).player.queue
+
+        # If queue is notempty or autoplay is disabled, don't handle autoplay
+        if queue != [] or autoplay_mode is data.AutoplayMode.NONE:
+            return
 
         # If there was no previous song provided, we default back to selecting a random song
         if prev_song_id is None:
@@ -125,21 +136,18 @@ class Player():
         if voice_client.is_playing():
             return
 
-        # If queue is empty but autoplay is enabled, handle autoplay
-        if self.queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode is not data.AutoplayMode.NONE:
-            await self.handle_autoplay(interaction)
+        await self.handle_autoplay(interaction)
 
         # Check if the queue contains songs
         if self.queue != []:
 
             # Pop the first item from the queue and begin streaming it
             song = self.queue.pop(0)
-            await self.stream_track(interaction, song, voice_client)
+            self.current_song = song
 
-            # If queue will be empty after playback ends, handle autoplay
-            if self.queue == [] and data.guild_properties(interaction.guild_id).autoplay_mode is not data.AutoplayMode.NONE:
-                await self.handle_autoplay(interaction, song.song_id)
+            await self.stream_track(interaction, song, voice_client)
             return
+            
 
         # If the queue is empty, playback has ended; we should let the user know
         await ui.SysMsg.playback_ended(interaction)
