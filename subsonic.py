@@ -37,35 +37,42 @@ class Song():
         ''' The song's id '''
         return self._id
 
+
     @property
     def title(self) -> str:
         ''' The song's title '''
         return self._title
+
 
     @property
     def album(self) -> str:
         ''' The album containing the song '''
         return self._album
 
+
     @property
     def artist(self) -> str:
         ''' The song's artist '''
         return self._artist
+
 
     @property
     def cover_id(self) -> str:
         ''' The id of the cover art used by the song '''
         return self._cover_id
 
+
     @property
     def duration(self) -> int:
         ''' The total duration of the song '''
         return self._duration
 
+
     @property
     def duration_printable(self) -> str:
         ''' The total duration of the song as a human readable string in the format `mm:ss` '''
         return f"{(self._duration // 60):02d}:{(self._duration % 60):02d}"
+
 
 
 def check_subsonic_error(response: requests.Response) -> bool:
@@ -106,6 +113,7 @@ def check_subsonic_error(response: requests.Response) -> bool:
     logger.warning("Subsonic API request responded with error code %s: %s", err_code, err_msg)
     return True
 
+
 def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_count: int=20, album_offset: int=0, song_count: int=20, song_offset: int=0) -> list[Song]:
     ''' Send a search request to the subsonic API '''
 
@@ -137,6 +145,7 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
 
     return results
 
+
 def get_album_art_file(cover_id: str, size: int=300) -> str:
     ''' Request album art from the subsonic API '''
     target_path = f"cache/{cover_id}.jpg"
@@ -162,6 +171,7 @@ def get_album_art_file(cover_id: str, size: int=300) -> str:
     file.write_bytes(response.content)
     return target_path
 
+
 def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_year: int=None, music_folder_id: str=None) -> list[Song]:
     ''' Request random songs from the subsonic API '''
 
@@ -183,7 +193,6 @@ def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_ye
     if music_folder_id is not None:
         search_params["musicFolderId"] = music_folder_id
 
-
     params = SUBSONIC_REQUEST_PARAMS | search_params
     response = requests.get(f"{env.SUBSONIC_SERVER}/rest/getRandomSongs.view", params=params, timeout=20)
     search_data = response.json()
@@ -193,6 +202,7 @@ def get_random_songs(size: int=None, genre: str=None, from_year: int=None, to_ye
         results.append(Song(item))
 
     return results
+
 
 def get_similar_songs(song_id: str, count: int=50) -> list[Song]:
     ''' Request similar songs from the subsonic API '''
@@ -211,6 +221,7 @@ def get_similar_songs(song_id: str, count: int=50) -> list[Song]:
         results.append(Song(item))
 
     return results
+
 
 def stream(stream_id: str):
     ''' Send a stream request to the subsonic API '''

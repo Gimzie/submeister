@@ -9,7 +9,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
 class SysMsg:
     ''' A class for sending system messages '''
 
@@ -48,20 +47,24 @@ class SysMsg:
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
         await __class__.msg(interaction, "Playing:", desc, cover_art)
 
+
     @staticmethod
     async def playback_ended(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating playback has ended '''
         await __class__.msg(interaction, "Playback ended")
+
 
     @staticmethod
     async def disconnected(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating the bot disconnected from voice channel '''
         await __class__.msg(interaction, "Disconnected from voice channel")
 
+
     @staticmethod
     async def starting_queue_playback(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating queue playback has started '''
         await __class__.msg(interaction, "Started queue playback")
+
 
     @staticmethod
     async def added_to_queue(interaction: discord.Interaction, song: subsonic.Song) -> None:
@@ -69,15 +72,18 @@ class SysMsg:
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
         await __class__.msg(interaction, f"{interaction.user.display_name} added track to queue", desc)
 
+
     @staticmethod
     async def queue_cleared(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating a user cleared the queue '''
         await __class__.msg(interaction, f"{interaction.user.display_name} cleared the queue")
 
+
     @staticmethod
     async def skipping(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating the current song was skipped '''
         await __class__.msg(interaction, "Skipped track")
+
 
 
 class ErrMsg:
@@ -93,30 +99,36 @@ class ErrMsg:
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
+
     @staticmethod
     async def user_not_in_voice_channel(interaction: discord.Interaction) -> None:
         ''' Sends an error message indicating user is not in a voice channel '''
         await __class__.msg(interaction, "You are not connected to a voice channel.")
+
 
     @staticmethod
     async def bot_not_in_voice_channel(interaction: discord.Interaction) -> None:
         ''' Sends an error message indicating bot is connect to a voice channel '''
         await __class__.msg(interaction, "Not currently connected to a voice channel.")
 
+
     @staticmethod
     async def cannot_connect_to_voice_channel(interaction: discord.Interaction) -> None:
         ''' Sends an error message indicating bot is unable to connect to a voice channel '''
         await __class__.msg(interaction, "Cannot connect to voice channel.")
+
 
     @staticmethod
     async def queue_is_empty(interaction: discord.Interaction) -> None:
         ''' Sends an error message indicating the queue is empty '''
         await __class__.msg(interaction, "Queue is empty.")
 
+
     @staticmethod
     async def already_playing(interaction: discord.Interaction) -> None:
         ''' Sends an error message indicating that music is already playing '''
         await __class__.msg(interaction, "Already playing.")
+
 
     @staticmethod
     async def not_playing(interaction: discord.Interaction) -> None:

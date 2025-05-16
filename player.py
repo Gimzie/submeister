@@ -21,38 +21,43 @@ _default_data: dict[str, any] = {
 
 class Player():
     ''' Class that represents an audio player '''
+
     def __init__(self) -> None:
         self._data = _default_data  
+
 
     @property
     def current_song(self) -> Song:
         '''The current song'''
         return self._data["current-song"]
 
+
     @current_song.setter
     def current_song(self, song: Song) -> None:
         self._data["current-song"] = song
+
 
     @property
     def current_position(self) -> int:
         ''' The current position for the current song, in seconds. '''
         return self._data["current-position"]
 
+
     @current_position.setter
     def current_position(self, position: int) -> None:
         ''' Set the current position for the current song, in seconds. '''
         self._data["current-position"] = position
+
 
     @property
     def queue(self) -> list[Song]:
         ''' The current audio queue. '''
         return self._data["queue"]
 
+
     @queue.setter
     def queue(self, value: list) -> None:
         self._data["queue"] = value
-
-
 
 
     async def stream_track(self, interaction: discord.Interaction, song: Song, voice_client: discord.VoiceClient) -> None:
@@ -85,7 +90,7 @@ class Player():
 
         # Begin playing the song
         loop = asyncio.get_event_loop()
-        
+
         def playback_finished(error: Exception):
             if error is not None:
                 logger.error("Exception occurred during playback: %s", error)
@@ -153,6 +158,5 @@ class Player():
             await self.stream_track(interaction, song, voice_client)
             return
             
-
         # If the queue is empty, playback has ended; we should let the user know
         await ui.SysMsg.playback_ended(interaction)

@@ -7,6 +7,7 @@ import sys
 
 from typing import TextIO
 
+
 def is_docker() -> bool:
     '''Checks if the application is being run within a Docker container.'''
 
@@ -46,6 +47,7 @@ class ColorFormatter(logging.Formatter):
         )
         for level, color in LEVEL_COLORS
     }
+
 
     def format(self, record: logging.LogRecord) -> str:
         formatter = self.FORMATS.get(record.levelno)

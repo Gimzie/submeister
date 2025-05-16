@@ -15,13 +15,16 @@ from submeister import SubmeisterClient
 
 logger = logging.getLogger(__name__)
 
+
 class MusicCog(commands.Cog):
     ''' A Cog containing music playback commands '''
 
     bot : SubmeisterClient
 
+
     def __init__(self, bot: SubmeisterClient):
         self.bot = bot
+
 
     async def get_voice_client(self, interaction: discord.Interaction, *, should_connect: bool=False) -> discord.VoiceClient:
         ''' Returns a voice client instance for the current guild '''
@@ -37,6 +40,7 @@ class MusicCog(commands.Cog):
                 await ui.ErrMsg.cannot_connect_to_voice_channel(interaction)
 
         return voice_client
+
 
     @app_commands.command(name="play", description="Plays a specified track")
     @app_commands.describe(query="Enter a search query")
@@ -307,6 +311,7 @@ class MusicCog(commands.Cog):
         if voice_client is not None and not voice_client.is_playing():
             player = data.guild_data(interaction.guild_id).player
             await player.play_audio_queue(interaction, voice_client)
+
 
 async def setup(bot: SubmeisterClient):
     ''' Setup function for the music.py cog '''

@@ -12,13 +12,16 @@ from util import env
 
 logger = logging.getLogger(__name__)
 
+
 class OwnerCog(commands.GroupCog, group_name="owner"):
     '''A Cog containing owner specific commands'''
 
     bot : SubmeisterClient
 
+
     def __init__(self, bot: SubmeisterClient):
         self.bot = bot
+
 
     async def is_owner(self, interaction: discord.Interaction) -> bool:
         '''Checks if the interaction came from the owner'''
@@ -56,6 +59,7 @@ class OwnerCog(commands.GroupCog, group_name="owner"):
             logger.info("Extension '%s' loaded successfully.", extension)
             await interaction.edit_original_response(content=f"Extension `{extension}` loaded successfully..")
 
+
     @app_commands.command(name="unload-extension")
     async def unload_extension(self, interaction: discord.Interaction, extension: str):
         '''Unloads the specified extension'''
@@ -78,6 +82,7 @@ class OwnerCog(commands.GroupCog, group_name="owner"):
         else:
             logger.info("Extension '%s' unloaded successfully.", extension)
             await interaction.edit_original_response(content=f"Extension `{extension}` unloaded successfully.")
+
 
     @app_commands.command(name="load-extension")
     async def load_extension(self, interaction: discord.Interaction, extension: str):
@@ -105,6 +110,7 @@ class OwnerCog(commands.GroupCog, group_name="owner"):
         else:
             logger.info("Extension '%s' loaded successfully.", extension)
             await interaction.edit_original_response(content=f"Extension `{extension}` loaded successfully.")
+
 
 async def setup(bot: SubmeisterClient):
     '''Setup function for the owner.py cog'''

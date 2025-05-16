@@ -13,15 +13,18 @@ import data
 from util import env
 from util import logs
 
+
 class SubmeisterClient(commands.Bot):
     ''' An instance of the submeister client '''
 
     test_guild: int
 
+
     def __init__(self, test_guild: int=None) -> None:
         self.test_guild = test_guild
 
         super().__init__(command_prefix=commands.when_mentioned, intents=discord.Intents.all())
+
 
     async def load_extensions(self) -> None:
         ''' Auto-loads all extensions present within the `./extensions` directory. '''
@@ -43,12 +46,14 @@ class SubmeisterClient(commands.Bot):
                 else:
                     logger.info("Extension '%s' loaded successfully.", ext_name)
 
+
     async def sync_command_tree(self) -> None:
         ''' Synchronizes the command tree with the guild used for testing. '''
 
         guild = discord.Object(self.test_guild)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
+
 
     async def setup_hook(self) -> None:
         ''' Setup done after login, prior to events being dispatched. '''
@@ -58,10 +63,12 @@ class SubmeisterClient(commands.Bot):
         if self.test_guild:
             await self.sync_command_tree()
 
+
     async def on_ready(self) -> None:
         ''' Event called when the client is done preparing. '''
 
         logger.info("Logged as: %s | Connected Guilds: %s | Loaded Extensions: %s", self.user, len(self.guilds), list(self.extensions))
+
 
 if __name__ == "__main__":
     logs.setup_logging()
@@ -72,8 +79,9 @@ if __name__ == "__main__":
     client = SubmeisterClient(test_guild=env.DISCORD_TEST_GUILD)
     client.run(env.DISCORD_BOT_TOKEN, log_handler=None)
 
+
 @atexit.register
 def exit_handler():
     ''' Function ran on application exit. '''
-
+    
     data.save_guild_properties_to_disk()
