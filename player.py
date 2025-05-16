@@ -2,12 +2,15 @@
 
 import asyncio
 import discord
+import logging
 
 import data
 import subsonic
 import ui
 
 from subsonic import Song
+
+logger = logging.getLogger(__name__)
 
 # Default player data
 _default_data: dict[str, any] = {
@@ -82,10 +85,12 @@ class Player():
 
         # Begin playing the song
         loop = asyncio.get_event_loop()
+        
+        def playback_finished(error: Exception):
+            if error is not None:
+                logger.error("Exception occurred during playback: %s", error)
 
-        # TODO: probably should handle error
-        def playback_finished(error):
-            self.handle_autoplay(interaction, self.current_song.song_id)
+            asyncio.run_coroutine_threadsafe(self.handle_autoplay(interaction, self.current_song.song_id), loop)
             asyncio.run_coroutine_threadsafe(self.play_audio_queue(interaction, voice_client), loop)
 
         voice_client.play(audio_src, after=playback_finished)
