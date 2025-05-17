@@ -83,12 +83,9 @@ class Player():
         self.current_song = song
         self.current_position = 0
 
-        # Let the user know the track will play
-        await ui.SysMsg.playing(interaction)
-
         # TODO: Start a duration timer
 
-        # Begin playing the song
+        # Set up a callback to set up the next track after a song finishes playing
         loop = asyncio.get_event_loop()
 
         def playback_finished(error: Exception):
@@ -98,7 +95,12 @@ class Player():
             asyncio.run_coroutine_threadsafe(self.handle_autoplay(interaction, self.current_song.song_id), loop)
             asyncio.run_coroutine_threadsafe(self.play_audio_queue(interaction, voice_client), loop)
 
-        voice_client.play(audio_src, after=playback_finished)
+        # Begin playing the song and let the user know it's being played
+        try:
+            voice_client.play(audio_src, after=playback_finished)
+            await ui.SysMsg.playing(interaction)
+        except (discord.ClientException):
+            pass
 
 
     async def handle_autoplay(self, interaction: discord.Interaction, prev_song_id: str=None):
