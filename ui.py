@@ -2,6 +2,7 @@
 
 import discord
 
+import asyncio
 import data
 import subsonic
 import logging
@@ -24,18 +25,27 @@ class SysMsg:
             file = discord.File(thumbnail, filename="image.png")
             embed.set_thumbnail(url="attachment://image.png")
 
-        # Attempt to send the error message, up to 3 times
-        attempt = 0
-        while attempt < 3:
+        # Send the system message (accounting for race conditions/timeout)
+        try:
+            # Try an immediate send, but timeout if it's too slow so we can attempt to defer in time
+            await asyncio.wait_for((
+                interaction.response.send_message(file=file, embed=embed) if not interaction.response.is_done()
+                else interaction.followup.send(file=file, embed=embed)), timeout=1.5
+            )
+        except (asyncio.TimeoutError, discord.InteractionResponded, discord.NotFound, discord.HTTPException):
+            # Defer if possible and then send a proper followup
+            if not interaction.response.is_done():
+                try:
+                    await interaction.response.defer()
+                except (discord.NotFound, discord.InteractionResponded):
+                    pass
+
+            # Finally try to send the message again
             try:
-                if interaction.response.is_done():
-                    await interaction.followup.send(file=file, embed=embed)
-                else:
-                    await interaction.response.send_message(file=file, embed=embed)
-                return
-            except discord.NotFound:
-                logger.warning("Attempt %d at sending a system message failed...", attempt+1)
-                attempt += 1
+                await interaction.followup.send(file=file, embed=embed)
+            except (discord.NotFound, discord.InteractionResponded):
+                logger.warning("Follow-up message could not be properly sent, sending as a standalone message instead.")
+                await interaction.channel.send(file=file, embed=embed)
 
 
     @staticmethod
