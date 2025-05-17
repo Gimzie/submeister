@@ -15,22 +15,24 @@ class SysMsg:
 
     @staticmethod
     async def msg(interaction: discord.Interaction, header: str, message: str=None, thumbnail: str=None) -> None:
-        ''' Generic message function. Creates a message formatted as an embed '''
+        ''' Generic message function. Creates and sends message formatted as an embed '''
 
         embed = discord.Embed(color=discord.Color.orange(), title=header, description=message)
-        file = discord.utils.MISSING
+        embed.set_thumbnail(url="attachment://image.png")
 
-        # Attach a thumbnail if one was provided (as a local file)
-        if thumbnail is not None:
-            file = discord.File(thumbnail, filename="image.png")
-            embed.set_thumbnail(url="attachment://image.png")
+        def get_thumbnail() -> discord.File:
+            # Attach a thumbnail if one was provided (as a local file)
+            if thumbnail is not None:
+                return discord.File(thumbnail, filename="image.png")
+            else:
+                return discord.utils.MISSING
 
         # Send the system message (accounting for race conditions/timeout)
         try:
             # Try an immediate send, but timeout if it's too slow so we can attempt to defer in time
             await asyncio.wait_for((
-                interaction.response.send_message(file=file, embed=embed) if not interaction.response.is_done()
-                else interaction.followup.send(file=file, embed=embed)), timeout=1.5
+                interaction.response.send_message(file=get_thumbnail(), embed=embed) if not interaction.response.is_done()
+                else interaction.followup.send(file=get_thumbnail(), embed=embed)), timeout=1.5
             )
         except (asyncio.TimeoutError, discord.InteractionResponded, discord.NotFound, discord.HTTPException):
             # Defer if possible and then send a proper followup
@@ -42,10 +44,10 @@ class SysMsg:
 
             # Finally try to send the message again
             try:
-                await interaction.followup.send(file=file, embed=embed)
+                await interaction.followup.send(file=get_thumbnail(), embed=embed)
             except (discord.NotFound, discord.InteractionResponded):
                 logger.warning("Follow-up message could not be properly sent, sending as a standalone message instead.")
-                await interaction.channel.send(file=file, embed=embed)
+                await interaction.channel.send(file=get_thumbnail(), embed=embed)
 
 
     @staticmethod
