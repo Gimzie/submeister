@@ -218,11 +218,11 @@ class MusicCog(commands.Cog):
             await ui.ErrMsg.bot_not_in_voice_channel(interaction)
             return
 
-        # Disconnect the voice client
-        await interaction.guild.voice_client.disconnect()
-
         # Display disconnect confirmation
         await ui.SysMsg.disconnected(interaction)
+
+        # Disconnect the voice client
+        await interaction.guild.voice_client.disconnect()
 
 
     @app_commands.command(name="show-queue", description="View the current queue")
