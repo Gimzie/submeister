@@ -14,7 +14,8 @@ class SysMsg:
     ''' A class for sending system messages '''
 
     @staticmethod
-    async def msg(interaction: discord.Interaction, header: str, message: str=None, thumbnail: str=None) -> None:
+    async def msg(interaction: discord.Interaction, header: str, message: str=None,
+                   thumbnail: str=None, standalone: bool=False) -> None:
         ''' Generic message function. Creates and sends message formatted as an embed '''
 
         embed = discord.Embed(color=discord.Color.orange(), title=header, description=message)
@@ -26,6 +27,11 @@ class SysMsg:
                 return discord.File(thumbnail, filename="image.png")
             else:
                 return discord.utils.MISSING
+            
+        # Handle standalone messages
+        if (standalone):
+            await interaction.channel.send(file=get_thumbnail(), embed=embed)
+            return
 
         # Send the system message (accounting for race conditions/timeout)
         try:
@@ -51,13 +57,13 @@ class SysMsg:
 
 
     @staticmethod
-    async def playing(interaction: discord.Interaction) -> None:
+    async def playing(interaction: discord.Interaction, standalone: bool=True) -> None:
         ''' Sends a message containing the currently playing song '''
         player = data.guild_data(interaction.guild_id).player
         song = player.current_song
         cover_art = subsonic.get_album_art_file(song.cover_id)
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
-        await __class__.msg(interaction, "Playing:", desc, cover_art)
+        await __class__.msg(interaction, header="Playing:", message=desc, thumbnail=cover_art, standalone=standalone)
 
 
     @staticmethod
