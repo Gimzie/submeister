@@ -3,6 +3,7 @@
 import asyncio
 import discord
 import logging
+import time
 
 import data
 import subsonic
@@ -15,7 +16,9 @@ logger = logging.getLogger(__name__)
 # Default player data
 _default_data: dict[str, any] = {
     "current-song": None,
-    "current-position": 0,
+    "last-elapsed": 0,
+    "last-start-time": 0,
+    "paused": False,
     "queue": [],
 }
 
@@ -38,22 +41,51 @@ class Player():
 
 
     @property
+    def last_elapsed(self) -> int:
+        ''' The time elapsed prior to pausing the player, in seconds. '''
+        return self._data["last-elapsed"]
+    
+
+    @last_elapsed.setter
+    def last_elapsed(self, elapsed: int) -> None:
+        self._data["last-elapsed"] = int(elapsed)
+
+
+    @property
+    def last_start_time(self) -> int:
+        ''' The last time the player was started, in seconds. '''
+        return self._data["last-start-time"]
+    
+    
+    @last_start_time.setter
+    def last_start_time(self, time: int) -> None:
+        self._data["last-start-time"] = int(time)
+
+
+    @property
+    def paused(self) -> bool:
+        ''' Whether the player is paused. '''
+        return self._data["paused"]
+    
+
+    @paused.setter
+    def paused(self, paused: bool) -> None:
+        self._data["paused"] = paused
+
+
+    @property
     def current_position(self) -> int:
         ''' The current position for the current song, in seconds. '''
-        return self._data["current-position"]
-
-
-    @current_position.setter
-    def current_position(self, position: int) -> None:
-        ''' Set the current position for the current song, in seconds. '''
-        self._data["current-position"] = position
+        if self.paused:
+            return self.last_elapsed
+        else:
+            return int(time.time()) - self.last_start_time + self.last_elapsed
 
 
     @property
     def queue(self) -> list[Song]:
         ''' The current audio queue. '''
         return self._data["queue"]
-
 
     @queue.setter
     def queue(self, value: list) -> None:
@@ -79,11 +111,9 @@ class Player():
         audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.song_id), **ffmpeg_options)
         # audio_src.read()
 
-        # Update the currently playing song, and reset the duration
+        # Update the currently playing song's data
         self.current_song = song
-        self.current_position = 0
-
-        # TODO: Start a duration timer
+        self.last_start_time = int(time.time())
 
         # Set up a callback to set up the next track after a song finishes playing
         loop = asyncio.get_event_loop()
@@ -158,6 +188,9 @@ class Player():
             self.current_song = song
 
             await self.stream_track(interaction, song, voice_client)
+
+            # Reset the last elapsed time, since we are starting a song from scratch
+            self.last_elapsed = 0
             return
             
         # If the queue is empty, playback has ended; we should let the user know
