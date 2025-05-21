@@ -61,7 +61,7 @@ class SysMsg:
         ''' Sends a message containing the currently playing song '''
         player = data.guild_data(interaction.guild_id).player
         song = player.current_song
-        cover_art = subsonic.get_album_art_file(song.cover_id)
+        cover_art = subsonic.get_album_art_file(song.cover_id, interaction.guild_id)
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
         await __class__.msg(interaction, header="Playing:", message=desc, thumbnail=cover_art, standalone=standalone)
 

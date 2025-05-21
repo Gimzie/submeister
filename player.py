@@ -133,7 +133,7 @@ class Player():
         self.queue.append(songs[0])
 
         # Fetch the cover art in advance
-        subsonic.get_album_art_file(songs[0].cover_id)
+        subsonic.get_album_art_file(songs[0].cover_id, interaction.guild_id)
 
 
     async def play_audio_queue(self, interaction: discord.Interaction, voice_client: discord.VoiceClient) -> None:

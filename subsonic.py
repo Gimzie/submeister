@@ -146,9 +146,9 @@ def search(query: str, *, artist_count: int=20, artist_offset: int=0, album_coun
     return results
 
 
-def get_album_art_file(cover_id: str, size: int=300) -> str:
+def get_album_art_file(cover_id: str, guild_id: int, size: int=300) -> str:
     ''' Request album art from the subsonic API '''
-    target_path = f"cache/{cover_id}.jpg"
+    target_path = f"cache/{guild_id}/{cover_id}.jpg"
 
     # Check if the cover art is already cached (TODO: Check for last-modified date?)
     if os.path.exists(target_path):

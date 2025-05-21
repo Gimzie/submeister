@@ -137,7 +137,7 @@ class MusicCog(commands.Cog):
             await ui.SysMsg.added_to_queue(interaction, selected_song)
 
             # Fetch the cover art in advance
-            subsonic.get_album_art_file(selected_song.cover_id)
+            subsonic.get_album_art_file(selected_song.cover_id, interaction.guild_id)
 
             # Attempt to play the audio queue, if the bot is in the voice channel
             if voice_client is not None:
