@@ -366,6 +366,10 @@ class Player():
         async def paused_unpaused(interaction: discord.Interaction) -> None:
             await interaction.response.defer(thinking=False)
 
+            # Check if user is in voice channel
+            if interaction.user.voice is None:
+                return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
             # Can't pause/unpause when not in a voice channel
             voice_client: discord.VoiceClient = interaction.guild.voice_client
             if voice_client is None:
@@ -386,6 +390,10 @@ class Player():
 
         # Callback to handle skipping
         async def skipped(interaction: discord.Interaction) -> None:
+            # Check if user is in voice channel
+            if interaction.user.voice is None:
+                return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
             await interaction.response.defer(thinking=False)
             await self.skip_track(interaction.guild.voice_client)
             await self.update_now_playing()
@@ -393,6 +401,10 @@ class Player():
 
         # Callback to handle stopping
         async def stopped(interaction: discord.Interaction) -> None:
+            # Check if user is in voice channel
+            if interaction.user.voice is None:
+                return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
             voice_client = interaction.guild.voice_client
             await self.disconnect(interaction, voice_client)
 

@@ -97,6 +97,10 @@ class MusicCog(commands.Cog):
     async def search(self, interaction: discord.Interaction, query: str) -> None:
         ''' Search for tracks by the given title/artist & list them '''
 
+        # Check if user is in voice channel
+        if interaction.user.voice is None:
+            return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
         # The number of songs to retrieve and the offset to start at
         song_count = 10 # TODO: Make this user-adjustable
         song_offset = 0
@@ -124,10 +128,6 @@ class MusicCog(commands.Cog):
         async def song_selected(interaction: discord.Interaction) -> None:
             voice_client = await self.get_voice_client(interaction)
 
-            # Don't allow users who aren't in a voice channel with the bot to queue tracks
-            if voice_client is not None and interaction.user.status is None:
-                return await ui.ErrMsg.user_not_in_voice_channel(interaction)
-
             # Get the song selected by the user
             selected_song = songs[int(song_selector.values[0])]
             selected_song.username = interaction.user.display_name
@@ -144,9 +144,8 @@ class MusicCog(commands.Cog):
             # Fetch the cover art in advance
             subsonic.get_album_art_file(selected_song.cover_id, interaction.guild_id)
 
-            # Attempt to play the audio queue, if the bot is in the voice channel
-            if voice_client is not None:
-                await player.play_audio_queue(interaction, voice_client)
+            # Finally, play the queue
+            await player.play_audio_queue(interaction, voice_client)
 
 
         # Assign the song_selected callback to the select menu
@@ -215,6 +214,10 @@ class MusicCog(commands.Cog):
     async def stop(self, interaction: discord.Interaction) -> None:
         ''' Disconnect from the active voice channel '''
 
+        # Check if user is in voice channel
+        if interaction.user.voice is None:
+            return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
         voice_client = await self.get_voice_client(interaction)
         player = data.guild_data(interaction.guild_id).player
 
@@ -246,6 +249,11 @@ class MusicCog(commands.Cog):
     @app_commands.command(name="clear-queue", description="Clear the queue.")
     async def clear_queue(self, interaction: discord.Interaction) -> None:
         '''Clear the queue'''
+
+        # Check if user is in voice channel
+        if interaction.user.voice is None:
+            return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
         queue = data.guild_data(interaction.guild_id).player.queue
         queue.clear()
 
@@ -257,6 +265,11 @@ class MusicCog(commands.Cog):
     async def skip(self, interaction: discord.Interaction) -> None:
         ''' Skip the current track '''
 
+        # Check if user is in voice channel
+        if interaction.user.voice is None:
+            return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+
+        interaction.response.defer(thinking=False)
         voice_client = await self.get_voice_client(interaction)
 
         # Check if the bot is connected to a voice channel
