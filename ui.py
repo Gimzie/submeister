@@ -29,35 +29,13 @@ class SysMsg:
 
         # Send the system message (accounting for race conditions/timeout)
         try:
-            # Try an immediate send, but timeout if it's too slow so we can attempt to defer in time
-            await asyncio.wait_for((
-                interaction.response.send_message(file=get_thumbnail(thumbnail), embed=embed) if not interaction.response.is_done()
-                else interaction.followup.send(file=get_thumbnail(thumbnail), embed=embed)), timeout=1.5
-            )
-        except (asyncio.TimeoutError, discord.InteractionResponded, discord.NotFound, discord.HTTPException):
-            # Defer if possible and then send a proper followup
             if not interaction.response.is_done():
-                try:
-                    await interaction.response.defer()
-                except (discord.NotFound, discord.InteractionResponded):
-                    pass
-
-            # Finally try to send the message again
-            try:
-                await interaction.followup.send(file=get_thumbnail(thumbnail), embed=embed)
-            except (discord.NotFound, discord.InteractionResponded):
-                logger.warning("Follow-up message could not be properly sent, sending as a standalone message instead.")
-                await interaction.channel.send(file=get_thumbnail(thumbnail), embed=embed)
-
-
-    @staticmethod
-    async def playing(interaction: discord.Interaction, standalone: bool=True) -> None:
-        ''' Sends a message containing the currently playing song '''
-        player = data.guild_data(interaction.guild_id).player
-        song = player.current_song
-        cover_art = subsonic.get_album_art_file(song.cover_id, interaction.guild_id)
-        desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
-        await __class__.msg(interaction, header="Playing:", message=desc, thumbnail=cover_art, standalone=standalone)
+                await interaction.response.defer(thinking=False)
+                
+            await interaction.followup.send(file=get_thumbnail(thumbnail), embed=embed)
+        except:
+            logger.warning("Follow-up message could not be properly sent, sending as a standalone message instead.")
+            await interaction.channel.send(file=get_thumbnail(thumbnail), embed=embed)
 
 
     @staticmethod
