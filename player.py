@@ -409,6 +409,9 @@ class Player():
         ''' Deletes the now playing message. '''
         
         if (self.now_playing_message is not None):
-            await self.now_playing_message.delete()
-            self.now_playing_message = None
+            try:
+                await self.now_playing_message.delete()
+                self.now_playing_message = None
+            except discord.HTTPException:
+                pass
 
