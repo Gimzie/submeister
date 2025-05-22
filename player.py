@@ -9,6 +9,7 @@ import time
 import data
 import subsonic
 import ui
+import util.discord
 
 from subsonic import Song
 
@@ -170,6 +171,14 @@ class Player():
 
             asyncio.run_coroutine_threadsafe(self.handle_autoplay(interaction, self.current_song.song_id), loop)
             asyncio.run_coroutine_threadsafe(self.play_audio_queue(interaction, voice_client), loop)
+
+            # If the now-playing message has been "buried" in chat, re-send it
+            if (self.now_playing_message is not None
+                    and asyncio.run_coroutine_threadsafe(util.discord.visually_has_n_messages_after(32, self.now_playing_message), loop).result()):
+                asyncio.run_coroutine_threadsafe(self.update_now_playing(interaction, force_create=True), loop)
+                return
+
+            # Otherwise, just update as usual
             asyncio.run_coroutine_threadsafe(self.update_now_playing(), loop)
 
 
