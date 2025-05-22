@@ -199,7 +199,7 @@ class Player():
 
             # If the now-playing message has been "buried" in chat, re-send it
             if (self.now_playing_message is not None
-                    and asyncio.run_coroutine_threadsafe(util.discord.visually_has_n_messages_after(32, self.now_playing_message), loop).result()):
+                    and asyncio.run_coroutine_threadsafe(util.discord.visually_has_n_messages_after(24, self.now_playing_message), loop).result()):
                 asyncio.run_coroutine_threadsafe(self.update_now_playing(interaction, force_create=True), loop)
                 return
 
