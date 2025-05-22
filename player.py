@@ -23,6 +23,9 @@ _default_data: dict[str, any] = {
     "last-start-time": 0,
     "paused": False,
     "now-playing-message": None,
+    "now-playing-update-task": None,
+    "now-playing-channel": None,
+    "now-playing-last-song": None,
     "queue": [],
 }
 
@@ -32,7 +35,6 @@ class Player():
     def __init__(self, guild_id: int) -> None:
         self._data = _default_data
         self._data["guild-id"] = guild_id
-        self._now_playing_update_task = None
 
 
     @property
@@ -125,12 +127,34 @@ class Player():
     @property
     def now_playing_update_task(self) -> asyncio.Task:
         ''' An update task that updates the now-playing message on an interval. '''
-        return self._now_playing_update_task
+        return self._data["now-playing-update-task"]
     
 
     @now_playing_update_task.setter
     def now_playing_update_task(self, task: asyncio.Task) -> None:
-        self._now_playing_update_task = task
+        self._data["now-playing-update-task"] = task
+
+
+    @property
+    def now_playing_channel(self) -> discord.TextChannel:
+        ''' The last channel the now-playing message was sent in. '''
+        return self._data["now-playing-channel"]
+    
+
+    @now_playing_channel.setter
+    def now_playing_channel(self, channel: discord.TextChannel) -> None:
+        self._data["now-playing-channel"] = channel
+
+
+    @property
+    def now_playing_last_song(self) -> Song:
+        ''' The last song that received an update on the now-playing view. '''
+        return self._data["now-playing-last-song"]
+    
+
+    @now_playing_last_song.setter
+    def now_playing_last_song(self, song: Song) -> None:
+        self._data["now-playing-last-song"] = song
 
 
 
@@ -156,6 +180,7 @@ class Player():
         # Update the currently playing song's data
         self.current_song = song
         self.last_start_time = int(time.time())
+        self.last_elapsed = 0
         self.paused = False
 
         # Set up a callback to set up the next track after a song finishes playing
@@ -245,9 +270,6 @@ class Player():
             self.current_song = song
 
             await self.stream_track(interaction, song, voice_client)
-
-            # Reset the last elapsed time, since we are starting a song from scratch
-            self.last_elapsed = 0
             return
             
         # If the queue is empty, playback has ended; we should let the user know
@@ -286,13 +308,21 @@ class Player():
 
     async def update_now_playing(self, interaction: discord.Interaction=None, force_create=False) -> None:
         ''' Updates an existing now-playing message, or creates a new one.\n
-            Forcing the creation of a message requires a valid interaction in order
-            to determine which channel the now-playing view should be sent in.
+            Forcing the creation of a message requires at least one valid interaction (ever)
+            in order to determine which channel the now-playing view should be sent in.
         '''
 
-        if (self.now_playing_message is None and interaction is None):
+        if (self.now_playing_message is None and self.now_playing_channel is None and interaction is None):
             logger.error("There is no message to update, and there is not enough context to create one.")
             return
+        
+        # Update the now-playing channel using the interaction, if one is provided
+        if interaction is not None:
+            self.now_playing_channel = interaction.channel
+
+        # If the now-playing channel is somehow not stored, but we have a message, copy it from the message
+        if self.now_playing_channel is None and self.now_playing_message is not None:
+            self.now_playing_channel = self.now_playing_message.channel
 
         view = await self.create_now_playing_view()
 
@@ -304,7 +334,7 @@ class Player():
         f"\n\n{ui.parse_elapsed_as_bar(self.elapsed, song.duration)}"
         )
 
-        embed = discord.Embed(color=discord.Color.orange(), title="Now Playing", description=desc,)
+        embed = discord.Embed(color=discord.Color.orange(), title="Now Playing", description=desc)
         embed.set_thumbnail(url="attachment://image.png")
         embed.set_footer(text=(
             f"{self.elapsed_printable} / {song.duration_printable}"
@@ -313,23 +343,36 @@ class Player():
 
         # Set up message args (avoid re-sending data, like attachments)
         kwargs = {"embed": embed, "view": view}
-        if (force_create and interaction is not None):
+        if (force_create):
             kwargs["file"] = ui.get_thumbnail(cover_art)
-        elif (interaction is not None or self.elapsed == 0):
+        elif (interaction is not None 
+                or self.now_playing_last_song is None 
+                or self.current_song.song_id != self.now_playing_last_song.song_id):
             kwargs["attachments"] = [ui.get_thumbnail(cover_art)]
 
-        # If an interaction was passed, assume that we want to respond to it and make it the new message to edit
-        if interaction is not None:
+        # We can force create a message as long as we have the channel to create it in
+        if force_create:
             await self.delete_now_playing()
-            if (force_create):
-                self.now_playing_message = await interaction.channel.send(**kwargs)
-            else:
-                self.now_playing_message = await interaction.edit_original_response(**kwargs)
+            self.now_playing_message = await self.now_playing_channel.send(**kwargs)
 
-        else: # Otherwise, just edit the existing message (TODO: Check how "buried" the last message is)
+        # If an interaction was passed, assume that we want to respond to it and make it the new message to update
+        elif interaction is not None:
+
+            # Defer the interaction if it hasn't been deferred yet, and delete the last message
+            if not interaction.response.is_done():
+                await interaction.response.defer(thinking=False)
+
+            # Avoid deleting a message that we're responding to
+            if interaction.message is None or self.now_playing_message.id != interaction.message.id:
+                await self.delete_now_playing()
+
+            # Update the now-playing message
+            self.now_playing_message = await interaction.edit_original_response(**kwargs)
+
+        else: # Otherwise, just edit the existing message
             await self.now_playing_message.edit(**kwargs)
 
-        
+
         # Start a task to update the now-playing message on a time interval
         async def update_loop() -> None:
             
@@ -347,6 +390,9 @@ class Player():
 
         if self.now_playing_update_task is None:
             self.now_playing_update_task = asyncio.create_task(update_loop(), name="now_playing_update_task")
+
+        # Successful update: track the last song we updated information for
+        self.now_playing_last_song = song
 
 
     async def create_now_playing_view(self) -> discord.ui.View:
