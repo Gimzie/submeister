@@ -6,6 +6,7 @@ import os
 import atexit
 import discord
 import signal
+import sys
 
 from discord.ext import commands
 
@@ -80,13 +81,18 @@ if __name__ == "__main__":
     client = SubmeisterClient(test_guild=env.DISCORD_TEST_GUILD)
     client.run(env.DISCORD_BOT_TOKEN, log_handler=None)
 
+
 @atexit.register
 def exit_handler():
     ''' Function ran on application exit. '''
     
     data.save_guild_properties_to_disk()
 
+
 def emergency_handler(signum, frame):
     exit_handler()
+    sys.exit(0)
+
 
 signal.signal(signal.SIGTERM, emergency_handler)
+signal.signal(signal.SIGINT, emergency_handler)
