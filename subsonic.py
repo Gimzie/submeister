@@ -240,8 +240,8 @@ def stream(stream_id: str):
     ''' Send a stream request to the subsonic API '''
 
     stream_params = {
-        "id": stream_id
-        # TODO: handle other params
+        "id": stream_id,
+        "raw": "true"
     }
 
     params = SUBSONIC_REQUEST_PARAMS | stream_params
