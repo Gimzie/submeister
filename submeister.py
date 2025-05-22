@@ -3,8 +3,8 @@
 import logging
 import os
 
-import atexit
 import discord
+import signal
 
 from discord.ext import commands
 
@@ -80,8 +80,9 @@ if __name__ == "__main__":
     client.run(env.DISCORD_BOT_TOKEN, log_handler=None)
 
 
-@atexit.register
-def exit_handler():
+def exit_handler(signum, frame):
     ''' Function ran on application exit. '''
     
     data.save_guild_properties_to_disk()
+
+signal.signal(signal.SIGTERM, exit_handler)
