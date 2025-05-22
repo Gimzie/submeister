@@ -184,6 +184,6 @@ def parse_elapsed_as_bar(elapsed: int, duration: int) -> str:
     ''' Parses track time information into a displayable bar. '''
 
     LENGTH = 17
-    num_filled = max(int(math.ceil(elapsed / duration * LENGTH)) - 1, 0)
+    num_filled = max(int(math.ceil(min(elapsed, duration) / duration * LENGTH)) - 1, 0)
 
-    return str("▰" * (num_filled) + "⚪" + "▱" * (LENGTH - num_filled - 1))
+    return str("▰" * num_filled + "⚪" + "▱" * (LENGTH - num_filled - 1))
