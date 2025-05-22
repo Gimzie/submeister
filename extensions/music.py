@@ -42,7 +42,7 @@ class MusicCog(commands.Cog):
         return voice_client
 
 
-    @app_commands.command(name="play", description="Plays a specified track")
+    @app_commands.command(name="play", description="Play a specific track.")
     @app_commands.describe(query="Enter a search query")
     async def play(self, interaction: discord.Interaction, query: str=None) -> None:
         ''' Play a track matching the given title/artist query '''
@@ -71,24 +71,28 @@ class MusicCog(commands.Cog):
             # Begin playback of queue
             await ui.SysMsg.starting_queue_playback(interaction)
             await player.play_audio_queue(interaction, voice_client)
-            return
 
-        # Send our query to the subsonic API and retrieve a list of 1 song
-        songs = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
+        else:
+            # Send our query to the subsonic API and retrieve a list of 1 song
+            songs = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
 
-        # Display an error if the query returned no results
-        if len(songs) == 0:
-            await ui.ErrMsg.msg(interaction, f"No result found for **{query}**.")
-            return
-        
-        # Add the first result to the queue and handle queue playback
-        player.queue.append(songs[0])
+            # Display an error if the query returned no results
+            if len(songs) == 0:
+                await ui.ErrMsg.msg(interaction, f"No result found for **{query}**.")
+                return
+            
+            # Add the first result to the queue and handle queue playback
+            songs[0].username = interaction.user.display_name
+            player.queue.append(songs[0])
 
-        await ui.SysMsg.added_to_queue(interaction, songs[0])
-        await player.play_audio_queue(interaction, voice_client)
+            await ui.SysMsg.added_to_queue(interaction, songs[0])
+            await player.play_audio_queue(interaction, voice_client)
+
+        if (player.now_playing_message is None):
+                await player.update_now_playing(interaction, force_create=True)
 
 
-    @app_commands.command(name="search", description="Search for a track")
+    @app_commands.command(name="search", description="Search for a track.")
     @app_commands.describe(query="Enter a search query")
     async def search(self, interaction: discord.Interaction, query: str) -> None:
         ''' Search for tracks by the given title/artist & list them '''
@@ -126,6 +130,7 @@ class MusicCog(commands.Cog):
 
             # Get the song selected by the user
             selected_song = songs[int(song_selector.values[0])]
+            selected_song.username = interaction.user.display_name
 
             # Get the guild's player
             player = data.guild_data(interaction.guild_id).player
@@ -206,26 +211,17 @@ class MusicCog(commands.Cog):
         await interaction.response.send_message(embed=song_list, view=view, ephemeral=True)
 
 
-    @app_commands.command(name="stop", description="Stop playing the current track")
+    @app_commands.command(name="stop", description="Stop playing the current track.")
     async def stop(self, interaction: discord.Interaction) -> None:
         ''' Disconnect from the active voice channel '''
 
-        # Get the voice client instance for the current guild
         voice_client = await self.get_voice_client(interaction)
+        player = data.guild_data(interaction.guild_id).player
 
-        # Check if our voice client is connected
-        if voice_client is None:
-            await ui.ErrMsg.bot_not_in_voice_channel(interaction)
-            return
-
-        # Display disconnect confirmation
-        await ui.SysMsg.disconnected(interaction)
-
-        # Disconnect the voice client
-        await interaction.guild.voice_client.disconnect()
+        await player.disconnect(interaction, voice_client)
 
 
-    @app_commands.command(name="show-queue", description="View the current queue")
+    @app_commands.command(name="show-queue", description="View the current queue.")
     async def show_queue(self, interaction: discord.Interaction) -> None:
         ''' Show the current queue '''
 
@@ -247,7 +243,7 @@ class MusicCog(commands.Cog):
         await ui.SysMsg.msg(interaction, "Queue", output)
 
 
-    @app_commands.command(name="clear-queue", description="Clear the queue")
+    @app_commands.command(name="clear-queue", description="Clear the queue.")
     async def clear_queue(self, interaction: discord.Interaction) -> None:
         '''Clear the queue'''
         queue = data.guild_data(interaction.guild_id).player.queue
@@ -257,28 +253,42 @@ class MusicCog(commands.Cog):
         await ui.SysMsg.queue_cleared(interaction)
 
 
-    @app_commands.command(name="skip", description="Skip the current track")
+    @app_commands.command(name="skip", description="Skip the current track.")
     async def skip(self, interaction: discord.Interaction) -> None:
         ''' Skip the current track '''
 
-        # Get the voice client instance
         voice_client = await self.get_voice_client(interaction)
 
         # Check if the bot is connected to a voice channel
         if voice_client is None:
             await ui.ErrMsg.bot_not_in_voice_channel(interaction)
             return
-
+        
         # Check if the bot is playing music
         if not voice_client.is_playing():
             await ui.ErrMsg.not_playing(interaction)
             return
 
-        # Stop the current song
-        voice_client.stop()
+        player = data.guild_data(interaction.guild_id).player
+        await player.skip_track(voice_client)
 
         # Display confirmation message
         await ui.SysMsg.skipping(interaction)
+
+
+    @app_commands.command(name="now-playing", description="Show the currently playing track.")
+    async def now_playing(self, interaction: discord.Interaction) -> None:
+        ''' Display the player controls & details for the currently playing song. '''
+
+        # Check if our voice client is connected
+        voice_client = await self.get_voice_client(interaction)
+        if voice_client is None:
+            await ui.ErrMsg.bot_not_in_voice_channel(interaction)
+            return
+
+        player = data.guild_data(interaction.guild_id).player
+        await interaction.response.defer(thinking=False)
+        await player.update_now_playing(interaction)
 
 
     @app_commands.command(name="autoplay", description="Toggles autoplay")

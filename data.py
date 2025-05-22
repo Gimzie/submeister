@@ -24,9 +24,9 @@ _default_data: dict[str, any] = {
 class GuildData():
     ''' Class that holds all Submeister data specific to a guild (not saved to disk) '''
 
-    def __init__(self) -> None:
+    def __init__(self, guild_id: int) -> None:
         self._data = _default_data
-        self.player = Player()
+        self.player = Player(guild_id)
         if self.player.queue is None:
             self.player.queue = []
 
@@ -42,6 +42,12 @@ class GuildData():
         self._data["player"] = value
 
 
+    @property
+    def guild_id(self) -> int:
+        ''' The guild ID this data belongs to. '''
+        return self.guild_id
+
+
 
 _guild_data_instances: dict[int, GuildData] = {} # Dictionary to store temporary data for each guild instance
 
@@ -54,7 +60,7 @@ def guild_data(guild_id: int) -> GuildData:
         return _guild_data_instances[guild_id]
 
     # Create & store new data object if guild does not already exist
-    data = GuildData()
+    data = GuildData(guild_id)
 
     # Load queue from disk if it exists
     if guild_properties(guild_id).queue is not None:
@@ -68,9 +74,9 @@ def guild_data(guild_id: int) -> GuildData:
 # Guild properties
 class AutoplayMode(Enum):
     ''' Enum representing an autoplay mode '''
-    NONE : Final[int] = 0
-    RANDOM : Final[int] = 1
-    SIMILAR : Final[int] = 2
+    NONE: Final[int] = 0
+    RANDOM: Final[int] = 1
+    SIMILAR: Final[int] = 2
 
 
 _default_properties: dict[str, any] = {

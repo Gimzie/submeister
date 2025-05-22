@@ -31,6 +31,8 @@ class Song():
         self._artist: str = json_object["artist"] if "artist" in json_object else "Unknown Artist"
         self._cover_id: str = json_object["coverArt"] if "coverArt" in json_object else ""
         self._duration: int = json_object["duration"] if "duration" in json_object else 0
+        self._username: str = "Unknown"
+
 
     @property
     def song_id(self) -> str:
@@ -70,8 +72,19 @@ class Song():
 
     @property
     def duration_printable(self) -> str:
-        ''' The total duration of the song as a human readable string in the format `mm:ss` '''
+        ''' The total duration of the song as a human readable string in the format `mm:ss`. '''
         return f"{(self._duration // 60):02d}:{(self._duration % 60):02d}"
+    
+
+    @property
+    def username(self) -> str:
+        ''' The user who added/played this song. '''
+        return self._username
+    
+
+    @username.setter
+    def username(self, name: str) -> None:
+        self._username = name
 
 
 

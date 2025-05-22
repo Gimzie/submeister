@@ -4,8 +4,9 @@ import discord
 
 import asyncio
 import data
-import subsonic
 import logging
+import math
+import subsonic
 
 logger = logging.getLogger(__name__)
 
@@ -20,25 +21,18 @@ class SysMsg:
 
         embed = discord.Embed(color=discord.Color.orange(), title=header, description=message)
         embed.set_thumbnail(url="attachment://image.png")
-
-        def get_thumbnail() -> discord.File:
-            # Attach a thumbnail if one was provided (as a local file)
-            if thumbnail is not None:
-                return discord.File(thumbnail, filename="image.png")
-            else:
-                return discord.utils.MISSING
             
         # Handle standalone messages
         if (standalone):
-            await interaction.channel.send(file=get_thumbnail(), embed=embed)
+            await interaction.channel.send(file=get_thumbnail(thumbnail), embed=embed)
             return
 
         # Send the system message (accounting for race conditions/timeout)
         try:
             # Try an immediate send, but timeout if it's too slow so we can attempt to defer in time
             await asyncio.wait_for((
-                interaction.response.send_message(file=get_thumbnail(), embed=embed) if not interaction.response.is_done()
-                else interaction.followup.send(file=get_thumbnail(), embed=embed)), timeout=1.5
+                interaction.response.send_message(file=get_thumbnail(thumbnail), embed=embed) if not interaction.response.is_done()
+                else interaction.followup.send(file=get_thumbnail(thumbnail), embed=embed)), timeout=1.5
             )
         except (asyncio.TimeoutError, discord.InteractionResponded, discord.NotFound, discord.HTTPException):
             # Defer if possible and then send a proper followup
@@ -50,10 +44,10 @@ class SysMsg:
 
             # Finally try to send the message again
             try:
-                await interaction.followup.send(file=get_thumbnail(), embed=embed)
+                await interaction.followup.send(file=get_thumbnail(thumbnail), embed=embed)
             except (discord.NotFound, discord.InteractionResponded):
                 logger.warning("Follow-up message could not be properly sent, sending as a standalone message instead.")
-                await interaction.channel.send(file=get_thumbnail(), embed=embed)
+                await interaction.channel.send(file=get_thumbnail(thumbnail), embed=embed)
 
 
     @staticmethod
@@ -155,6 +149,15 @@ class ErrMsg:
 
 
 
+# Misc UI methods
+def get_thumbnail(thumbnail_path: str) -> discord.File:
+        if thumbnail_path is not None:
+            return discord.File(thumbnail_path, filename="image.png")
+        else:
+            return discord.utils.MISSING
+
+
+
 # Methods for parsing data to Discord structures
 def parse_search_as_track_selection_embed(results: list[subsonic.Song], query: str, page_num: int) -> discord.Embed:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord embed suitable for track selection '''
@@ -197,3 +200,12 @@ def parse_search_as_track_selection_options(results: list[subsonic.Song]) -> lis
         select_options.append(select_option)
 
     return select_options
+
+
+def parse_elapsed_as_bar(elapsed: int, duration: int) -> str:
+    ''' Parses track time information into a displayable bar. '''
+
+    LENGTH = 17
+    num_filled = max(int(math.ceil(elapsed / duration * LENGTH)) - 1, 0)
+
+    return str("▰" * (num_filled) + "⚪" + "▱" * (LENGTH - num_filled - 1))
