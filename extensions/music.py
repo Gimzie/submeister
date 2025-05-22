@@ -269,7 +269,7 @@ class MusicCog(commands.Cog):
         if interaction.user.voice is None:
             return await ui.ErrMsg.user_not_in_voice_channel(interaction)
 
-        interaction.response.defer(thinking=False)
+        await interaction.response.defer(thinking=False)
         voice_client = await self.get_voice_client(interaction)
 
         # Check if the bot is connected to a voice channel
