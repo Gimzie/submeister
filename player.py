@@ -7,11 +7,11 @@ import random
 import time
 
 import data
-import subsonic
 import ui
 import util.discord
 
-from subsonic import Song
+from subsonic.song import Song
+import subsonic.backend as backend
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +174,7 @@ class Player():
         # Get the stream from the Subsonic server, using the provided song's ID
         ffmpeg_options = {"before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
                            "options": "-filter:a loudnorm=I=-14:LRA=11:TP=-1.5"}
-        audio_src = discord.FFmpegOpusAudio(subsonic.stream(song.song_id), **ffmpeg_options)
+        audio_src = discord.FFmpegOpusAudio(backend.stream(song.song_id), **ffmpeg_options)
         # audio_src.read()
 
         # Update the currently playing song's data
@@ -232,9 +232,9 @@ class Player():
 
         match autoplay_mode:
             case data.AutoplayMode.RANDOM:
-                songs = subsonic.get_random_songs(size=1)
+                songs = backend.get_random_songs(size=1)
             case data.AutoplayMode.SIMILAR:
-                songs = subsonic.get_similar_songs(song_id=prev_song_id, count=1)
+                songs = backend.get_similar_songs(song_id=prev_song_id, count=1)
 
         # If there's no match, throw an error
         if len(songs) == 0:
@@ -245,7 +245,7 @@ class Player():
         self.queue.append(songs[0])
 
         # Fetch the cover art in advance
-        subsonic.get_album_art_file(songs[0].cover_id, interaction.guild_id)
+        backend.get_album_art_file(songs[0].cover_id, interaction.guild_id)
 
 
     async def play_audio_queue(self, interaction: discord.Interaction, voice_client: discord.VoiceClient) -> None:
@@ -270,8 +270,13 @@ class Player():
             self.current_song = song
 
             await self.stream_track(interaction, song, voice_client)
+
+            # Update the now-playing message if necessary
+            if (self.now_playing_message is None):
+                await self.update_now_playing(interaction, force_create=True)
+
             return
-            
+
         # If the queue is empty, playback has ended; we should let the user know
         await ui.SysMsg.playback_ended(interaction)
 
@@ -328,7 +333,7 @@ class Player():
 
         # Set up the now-playing embed
         song = self.current_song
-        cover_art = subsonic.get_album_art_file(song.cover_id, self.guild_id)
+        cover_art = backend.get_album_art_file(song.cover_id, self.guild_id)
         desc = ( f"**{song.title}** - *{song.artist}*"
         f"\n{song.album}"
         f"\n\n{ui.parse_elapsed_as_bar(self.elapsed, song.duration)}"

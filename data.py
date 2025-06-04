@@ -11,7 +11,7 @@ import pickle
 from enum import Enum
 from typing import Final
 
-from subsonic import Song
+from subsonic.song import Song
 from player import Player
 
 logger = logging.getLogger(__name__)

@@ -8,7 +8,7 @@ from discord.ext import commands
 
 import data
 import player
-import subsonic
+import subsonic.backend as backend
 import ui
 
 from submeister import SubmeisterClient
@@ -74,7 +74,7 @@ class MusicCog(commands.Cog):
 
         else:
             # Send our query to the subsonic API and retrieve a list of 1 song
-            songs = subsonic.search(query, artist_count=0, album_count=0, song_count=1)
+            songs = backend.search(query, artist_count=0, album_count=0, song_count=1)
 
             # Display an error if the query returned no results
             if len(songs) == 0:
@@ -102,11 +102,11 @@ class MusicCog(commands.Cog):
             return await ui.ErrMsg.user_not_in_voice_channel(interaction)
 
         # The number of songs to retrieve and the offset to start at
-        song_count = 10 # TODO: Make this user-adjustable
+        song_count = 10
         song_offset = 0
 
-        # Send our query to the subsonic API and retrieve a list of songs
-        songs = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
+        # Send our query to the Subsonic API and retrieve a list of songs
+        songs = backend.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
 
         # Display an error if the query returned no results
         if len(songs) == 0:
@@ -126,7 +126,7 @@ class MusicCog(commands.Cog):
 
         # Callback to handle interaction with a select item
         async def song_selected(interaction: discord.Interaction) -> None:
-            voice_client = await self.get_voice_client(interaction)
+            voice_client = await self.get_voice_client(interaction, should_connect=True)
 
             # Get the song selected by the user
             selected_song = songs[int(song_selector.values[0])]
@@ -142,7 +142,7 @@ class MusicCog(commands.Cog):
             await ui.SysMsg.added_to_queue(interaction, selected_song)
 
             # Fetch the cover art in advance
-            subsonic.get_album_art_file(selected_song.cover_id, interaction.guild_id)
+            backend.get_album_art_file(selected_song.cover_id, interaction.guild_id)
 
             # Finally, play the queue
             await player.play_audio_queue(interaction, voice_client)
@@ -174,7 +174,7 @@ class MusicCog(commands.Cog):
 
             # Send our query to the Subsonic API and retrieve a list of songs, backing up the previous page's songs first
             songs_lastpage = songs
-            songs = subsonic.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
+            songs = backend.search(query, artist_count=0, album_count=0, song_count=song_count, song_offset=song_offset)
 
             # If there are no results on this page, go back one page and don't update the response
             if len(songs) == 0:
@@ -304,7 +304,7 @@ class MusicCog(commands.Cog):
         await player.update_now_playing(interaction)
 
 
-    @app_commands.command(name="autoplay", description="Toggles autoplay")
+    @app_commands.command(name="autoplay", description="Controls the autoplay mode.")
     @app_commands.describe(mode="Determines the method to use when autoplaying")
     @app_commands.choices(mode=[
         app_commands.Choice(name="None", value="none"),
@@ -334,6 +334,154 @@ class MusicCog(commands.Cog):
         if voice_client is not None and not voice_client.is_playing():
             player = data.guild_data(interaction.guild_id).player
             await player.play_audio_queue(interaction, voice_client)
+
+    @app_commands.command(name="playlists", description="Lists available playlists.")
+    async def playlists(self, interaction: discord.Interaction) -> None:
+        ''' List available playlists and add them to queue/autoplay '''
+
+        # Check if user is in voice channel
+        if interaction.user.voice is None:
+            return await ui.ErrMsg.user_not_in_voice_channel(interaction)
+        
+        # The number of playlists to show and the offset to start at
+        playlist_count = 5
+        playlist_offset = 0
+
+        # Query the Subsonic API for a list of avaliable playlists
+        playlists = backend.get_playlists()
+
+        # Select a few of them to display at once
+        displayed_playlists = playlists[playlist_offset:playlist_offset + playlist_count]
+
+        # Display an error if the query returned no results
+        if len(playlists) == 0:
+            await ui.ErrMsg.msg(interaction, f"No playlists found.")
+            return
+
+        # Create a view for our response
+        view = discord.ui.View()
+
+        # Create a select menu option for each of our results
+        select_options = ui.parse_playlists_as_playlist_selection_options(displayed_playlists)
+
+        # Create a select menu, populated with our options
+        playlist_selector = discord.ui.Select(placeholder="Select a playlist", options=select_options)
+        view.add_item(playlist_selector)
+
+
+        # Callback to handle interaction with a select item
+        async def playlist_selected(interaction: discord.Interaction) -> None:
+            nonlocal view
+
+            # Get the selected playlist (and its contents)
+            selected_playlist = playlists[playlist_offset + int(playlist_selector.values[0])]
+            selected_playlist.username = interaction.user.display_name
+            selected_playlist.songs = backend.get_songs_in_playlist(selected_playlist.playlist_id)
+
+            # Set up a fresh view for the playlist mode selecetion
+            view.clear_items()
+
+            # Set up buttons
+            queue_button = discord.ui.Button(label="Queue", custom_id="queue_button")
+            queue_button.style = discord.ButtonStyle.grey
+
+            shuffle_button = discord.ui.Button(label="Shuffle", custom_id="shuffle_button")
+            shuffle_button.style = discord.ButtonStyle.grey
+
+            view.add_item(queue_button)
+            view.add_item(shuffle_button)
+
+
+            # Callback for queue/shuffle buttons
+            async def playlist_added(interaction: discord.Interaction) -> None:
+                if (interaction.data["custom_id"] == "queue_button"):
+
+                    # Make sure it is clear who added the playlist
+                    for song in selected_playlist.songs:
+                        song.username = interaction.user.display_name
+
+                    # Add the playlist to the queue and let the user know
+                    player = data.guild_data(interaction.guild_id).player
+                    player.queue += selected_playlist.songs
+                    await ui.SysMsg.added_playlist_to_queue(interaction, selected_playlist)
+
+                    # Play the queue
+                    voice_client = await self.get_voice_client(interaction, should_connect=True)
+                    await player.play_audio_queue(interaction, voice_client)
+                    return
+                
+                if (interaction.data["custom_id"] == "shuffle_button"):
+
+                    return
+
+            queue_button.callback = playlist_added
+            shuffle_button.callback = playlist_added
+
+            desc = "Would you like to queue the selected playlist, or use it as an autoplay source (shuffle)?"
+            embed = discord.Embed(color=discord.Color.orange(), title="Playlist Mode", description=desc)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+
+        playlist_selector.callback = playlist_selected
+
+        # Create page navigation buttons
+        prev_button = discord.ui.Button(label="<", custom_id="prev_button")
+        next_button = discord.ui.Button(label=">", custom_id="next_button")
+        view.add_item(prev_button)
+        view.add_item(next_button)
+        
+
+        # Callback to handle interactions with page navigator buttons
+        async def page_changed(interaction: discord.Interaction) -> None:
+            nonlocal playlist_count, playlist_offset, playlist_selector, playlist_selected, playlists, displayed_playlists
+
+            # Adjust the search offset according to the button pressed
+            if interaction.data["custom_id"] == "prev_button":
+                playlist_offset -= playlist_count
+                if playlist_offset < 0:
+                    playlist_offset = 0
+                    await interaction.response.defer()
+                    return
+            elif interaction.data["custom_id"] == "next_button":
+                playlist_offset += playlist_count
+
+            # Select the playlists to be displayed on this page
+            playlists_lastpage = displayed_playlists
+            displayed_playlists = playlists[playlist_offset:playlist_offset + playlist_count]
+
+            # If there are no results on this page, go back one page and don't update the response
+            if len(displayed_playlists) == 0:
+                playlist_offset -= playlist_count
+                displayed_playlists = playlists_lastpage
+                await interaction.response.defer()
+                return
+
+            # Generate a new embed containing this page's playlists
+            playlist_list = ui.parse_playlists_as_playlist_selection_embed(displayed_playlists, (playlist_offset // playlist_count) + 1)
+
+            # Create a selection menu, populated with our new options
+            select_options = ui.parse_playlists_as_playlist_selection_options(displayed_playlists)
+
+            # Update the selector in the existing view
+            view.remove_item(playlist_selector)
+            playlist_selector = discord.ui.Select(placeholder="Select a playlist", options=select_options)
+            playlist_selector.callback = playlist_selected
+            view.add_item(playlist_selector)
+
+            # Update the message to show the new page of playlists
+            await interaction.response.edit_message(embed=playlist_list, view=view)
+
+
+        # Assign the page_changed callback to the page navigation buttons
+        prev_button.callback = page_changed
+        next_button.callback = page_changed
+
+        # Generate a new embed containing this page's playlists
+        playlist_list = ui.parse_playlists_as_playlist_selection_embed(displayed_playlists, (playlist_offset // playlist_count) + 1)
+
+        # Show our playlist selection menu
+        await interaction.response.send_message(embed=playlist_list, view=view, ephemeral=True)
+
 
 
 async def setup(bot: SubmeisterClient):

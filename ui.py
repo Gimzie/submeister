@@ -6,7 +6,10 @@ import asyncio
 import data
 import logging
 import math
-import subsonic
+
+from subsonic.song import Song
+from subsonic.playlist import Playlist
+import subsonic.backend as backend
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +60,17 @@ class SysMsg:
 
 
     @staticmethod
-    async def added_to_queue(interaction: discord.Interaction, song: subsonic.Song) -> None:
+    async def added_to_queue(interaction: discord.Interaction, song: Song) -> None:
         ''' Sends a message indicating the selected song was added to queue '''
         desc = f"**{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})"
         await __class__.msg(interaction, f"{interaction.user.display_name} added track to queue", desc)
+
+
+    @staticmethod
+    async def added_playlist_to_queue(interaction: discord.Interaction, playlist: Playlist) -> None:
+        ''' Sends a message indicating the selected playlist was added to the queue '''
+        desc = f"**{playlist.name} ({playlist.song_count} tracks)**"
+        await __class__.msg(interaction, f"{interaction.user.display_name} added playlist to queue", desc)
 
 
     @staticmethod
@@ -137,7 +147,7 @@ def get_thumbnail(thumbnail_path: str) -> discord.File:
 
 
 # Methods for parsing data to Discord structures
-def parse_search_as_track_selection_embed(results: list[subsonic.Song], query: str, page_num: int) -> discord.Embed:
+def parse_search_as_track_selection_embed(results: list[backend.Song], query: str, page_num: int) -> discord.Embed:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord embed suitable for track selection '''
 
     options_str = ""
@@ -162,19 +172,49 @@ def parse_search_as_track_selection_embed(results: list[subsonic.Song], query: s
         # Add each of the results to our output string
         options_str += f"**{tr_title}** - *{tr_artist}* \n*{tr_album}* ({song.duration_printable})\n\n"
 
-    # Add the current page number to our results
-    options_str += f"Current page: {page_num}"
-
     # Return an embed that displays our output string
-    return discord.Embed(color=discord.Color.orange(), title=f"Results for: {query}", description=options_str)
+    embed = discord.Embed(color=discord.Color.orange(), title=f"Results for: {query}", description=options_str)
+    embed.set_footer(f"Current page: {page_num}")
+    return embed
 
 
-def parse_search_as_track_selection_options(results: list[subsonic.Song]) -> list[discord.SelectOption]:
+def parse_search_as_track_selection_options(results: list[backend.Song]) -> list[discord.SelectOption]:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord selection list for tracks '''
 
     select_options = []
     for i, song in enumerate(results):
         select_option = discord.SelectOption(label=f"{song.title}", description=f"by {song.artist}", value=i)
+        select_options.append(select_option)
+
+    return select_options
+
+
+def parse_playlists_as_playlist_selection_embed(results: list[backend.Playlist], page_num: int) -> discord.Embed:
+    ''' Takes a playlist list obtained from the Subsonic API and parses them into a Discord embed suitable for playlist selection '''
+
+    options_str = ""
+
+    # Loop over the provided playlist list
+    for playlist in results:
+
+        # Trim displayed fields to fit neatly within the embed
+        pl_name = (playlist.name[:68] + "...") if len(playlist.name) > 68 else playlist.name
+
+        # Add each result to our output string
+        options_str += f"**{pl_name}** ({playlist.duration_printable})\n{playlist.song_count} tracks\n\n"
+
+    # Return an embed that displays our output string
+    embed = discord.Embed(color=discord.Color.orange(), title=f"Available playlists:", description=options_str)
+    embed.set_footer(text=f"Current page: {page_num}")
+    return embed
+
+
+def parse_playlists_as_playlist_selection_options(results: list[backend.Playlist]) -> list[discord.SelectOption]:
+    ''' Takes a playlist list obtained from the Subsonic API and parses them into a Discord selection list for tracks '''
+
+    select_options = []
+    for i, playlist in enumerate(results):
+        select_option = discord.SelectOption(label=f"{playlist.name}", description=f"{playlist.song_count} tracks", value=i)
         select_options.append(select_option)
 
     return select_options
