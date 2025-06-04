@@ -231,19 +231,67 @@ class MusicCog(commands.Cog):
         # Get the audio queue for the current guild
         queue = data.guild_data(interaction.guild_id).player.queue
 
-        # Create a string to store the output of our queue
-        output = ""
+        # If the queue is empty, tell the user so!
+        if len(queue) == 0:
+            await ui.SysMsg.queue_empty(interaction)
+            return
+        
+        # The number of songs to show and the offset to start at
+        song_count = 10
+        song_offset = 0
 
-        # Loop over our queue, adding each song into our output string
-        for i, song in enumerate(queue):
-            output += f"{i+1}. **{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})\n\n"
+        # Select a few songs in the queue to display at once
+        displayed_songs = queue[song_offset:song_offset + song_count]
 
-        # Check if our output string is empty & update it accordingly
-        if output == "":
-            output = "Queue is empty!"
+        # Create a view for our response (and buttons)
+        view = discord.ui.View()
+        prev_button = discord.ui.Button(label="<", custom_id="prev_button")
+        next_button = discord.ui.Button(label=">", custom_id="next_button")
+        view.add_item(prev_button)
+        view.add_item(next_button)
 
-        # Show the user their queue
-        await ui.SysMsg.msg(interaction, "Queue", output)
+
+        # Callback to handle interactions with page navigator buttons
+        async def page_changed(interaction: discord.Interaction) -> None:
+            nonlocal song_count, song_offset, queue, displayed_songs
+
+            # Adjust the song offset according to the button pressed
+            if interaction.data["custom_id"] == "prev_button":
+                song_offset -= song_count
+                if song_offset < 0:
+                    song_offset = 0
+                    await interaction.response.defer()
+                    return
+            elif interaction.data["custom_id"] == "next_button":
+                song_offset += song_count
+
+            # Select the songs to be displayed on this page
+            queue_lastpage = displayed_songs
+            displayed_songs = queue[song_offset:song_offset + song_count]
+
+            # If there are no results on this page, go back one page and don't update the response
+            if len(displayed_songs) == 0:
+                song_offset -= song_count
+                displayed_songs = queue_lastpage
+                await interaction.response.defer()
+                return
+
+            # Generate a new embed containing this page of the queue
+            embed = ui.parse_queue_as_embed(displayed_songs, (song_offset // song_count) + 1, song_count)
+
+            # Update the message to show the new page of the queue
+            await interaction.response.edit_message(embed=embed, view=view)
+
+
+        # Assign the page_changed callback to the page navigation buttons
+        prev_button.callback = page_changed
+        next_button.callback = page_changed
+
+        # Generate a new embed containing this page of the queue
+        embed = ui.parse_queue_as_embed(displayed_songs, 1, song_count)
+
+        # Show the user the queue
+        await interaction.response.send_message(embed=embed, view=view)
 
 
     @app_commands.command(name="clear-queue", description="Clear the queue.")
@@ -435,7 +483,7 @@ class MusicCog(commands.Cog):
         async def page_changed(interaction: discord.Interaction) -> None:
             nonlocal playlist_count, playlist_offset, playlist_selector, playlist_selected, playlists, displayed_playlists
 
-            # Adjust the search offset according to the button pressed
+            # Adjust the playlist offset according to the button pressed
             if interaction.data["custom_id"] == "prev_button":
                 playlist_offset -= playlist_count
                 if playlist_offset < 0:

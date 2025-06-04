@@ -80,6 +80,12 @@ class SysMsg:
 
 
     @staticmethod
+    async def queue_empty(interaction: discord.Interaction) -> None:
+        ''' Sends a message indicating that the queue is empty '''
+        await __class__.msg(interaction, "Queue is empty!")
+
+
+    @staticmethod
     async def skipping(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating the current song was skipped '''
         await __class__.msg(interaction, "Skipped track")
@@ -147,7 +153,7 @@ def get_thumbnail(thumbnail_path: str) -> discord.File:
 
 
 # Methods for parsing data to Discord structures
-def parse_search_as_track_selection_embed(results: list[backend.Song], query: str, page_num: int) -> discord.Embed:
+def parse_search_as_track_selection_embed(results: list[Song], query: str, page_num: int) -> discord.Embed:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord embed suitable for track selection '''
 
     options_str = ""
@@ -178,7 +184,7 @@ def parse_search_as_track_selection_embed(results: list[backend.Song], query: st
     return embed
 
 
-def parse_search_as_track_selection_options(results: list[backend.Song]) -> list[discord.SelectOption]:
+def parse_search_as_track_selection_options(results: list[Song]) -> list[discord.SelectOption]:
     ''' Takes search results obtained from the Subsonic API and parses them into a Discord selection list for tracks '''
 
     select_options = []
@@ -189,7 +195,7 @@ def parse_search_as_track_selection_options(results: list[backend.Song]) -> list
     return select_options
 
 
-def parse_playlists_as_playlist_selection_embed(results: list[backend.Playlist], page_num: int) -> discord.Embed:
+def parse_playlists_as_playlist_selection_embed(results: list[Playlist], page_num: int) -> discord.Embed:
     ''' Takes a playlist list obtained from the Subsonic API and parses them into a Discord embed suitable for playlist selection '''
 
     options_str = ""
@@ -209,7 +215,7 @@ def parse_playlists_as_playlist_selection_embed(results: list[backend.Playlist],
     return embed
 
 
-def parse_playlists_as_playlist_selection_options(results: list[backend.Playlist]) -> list[discord.SelectOption]:
+def parse_playlists_as_playlist_selection_options(results: list[Playlist]) -> list[discord.SelectOption]:
     ''' Takes a playlist list obtained from the Subsonic API and parses them into a Discord selection list for tracks '''
 
     select_options = []
@@ -218,6 +224,21 @@ def parse_playlists_as_playlist_selection_options(results: list[backend.Playlist
         select_options.append(select_option)
 
     return select_options
+
+
+def parse_queue_as_embed(queue: list[Song], page_num: int, num_per_page: int) -> discord.Embed:
+    ''' Takes part of a queue and parses it into a Discord embed suitable for playlist selection '''
+
+    desc = ""
+
+    for i, song in enumerate(queue):
+        desc += f"{i+1+((page_num-1)*num_per_page)}. **{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})\n\n"
+
+    embed = discord.Embed(color=discord.Color.orange(), title="Queue", description=desc)
+    embed.set_footer(text=f"Current page: {page_num}")
+
+    return embed
+
 
 
 def parse_elapsed_as_bar(elapsed: int, duration: int) -> str:
