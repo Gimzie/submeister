@@ -4,6 +4,7 @@ import logging
 import os
 import requests
 
+from typing import Tuple
 from pathlib import Path
 from subsonic.song import Song
 from subsonic.playlist import Playlist
@@ -182,6 +183,26 @@ def get_playlists() -> list[Playlist]:
         results.append(Playlist(item))
 
     return results
+
+
+def get_playlist(playlist_id: str) -> Playlist:
+    ''' Obtains a specific playlist, along with its songs '''
+
+    playlist_params = {
+        "id": playlist_id
+    }
+
+    params = SUBSONIC_REQUEST_PARAMS | playlist_params
+    response = requests.get(f"{env.SUBSONIC_SERVER}/rest/getPlaylist", params=params, timeout=20)
+    playlist_data = response.json()
+
+    playlist = Playlist(playlist_data["subsonic-response"]["playlist"])
+
+    songs: list[Song] = []
+    for item in playlist_data["subsonic-response"]["playlist"]["entry"]:
+        playlist.songs.append(Song(item))
+        
+    return playlist
 
 
 def get_songs_in_playlist(playlist_id: str) -> list[Song]:

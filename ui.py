@@ -69,8 +69,15 @@ class SysMsg:
     @staticmethod
     async def added_playlist_to_queue(interaction: discord.Interaction, playlist: Playlist) -> None:
         ''' Sends a message indicating the selected playlist was added to the queue '''
-        desc = f"**{playlist.name} ({playlist.song_count} tracks)**"
+        desc = f"Source: **{playlist.name} ({playlist.song_count} tracks)**"
         await __class__.msg(interaction, f"{interaction.user.display_name} added playlist to queue", desc)
+
+
+    @staticmethod
+    async def set_autoplay_to_playlist(interaction: discord.Interaction, playlist: Playlist) -> None:
+        ''' Sends a message indicating Autoplay was set to the selected playlist '''
+        desc = f"**{playlist.name} ({playlist.song_count} tracks)**"
+        await __class__.msg(interaction, f"{interaction.user.display_name} set the Autoplay mode to Playlist", desc)
 
 
     @staticmethod
@@ -180,7 +187,7 @@ def parse_search_as_track_selection_embed(results: list[Song], query: str, page_
 
     # Return an embed that displays our output string
     embed = discord.Embed(color=discord.Color.orange(), title=f"Results for: {query}", description=options_str)
-    embed.set_footer(f"Current page: {page_num}")
+    embed.set_footer(text=f"Current page: {page_num}")
     return embed
 
 

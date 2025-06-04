@@ -26,6 +26,7 @@ class GuildData():
 
     def __init__(self, guild_id: int) -> None:
         self._data = _default_data
+        self._guild_id = guild_id
         self.player = Player(guild_id)
         if self.player.queue is None:
             self.player.queue = []
@@ -77,11 +78,13 @@ class AutoplayMode(Enum):
     NONE: Final[int] = 0
     RANDOM: Final[int] = 1
     SIMILAR: Final[int] = 2
+    PLAYLIST: Final[int] = 3
 
 
 _default_properties: dict[str, any] = {
     "queue": None,
     "autoplay-mode": AutoplayMode.NONE,
+    "autoplay-source-id": ""
 }
 
 
@@ -105,7 +108,19 @@ class GuildProperties():
 
 
     @property
+    def autoplay_source_id(self) -> str:
+        ''' The id (album or playlist) the autoplay source can be obtained from. '''
+        return self._properties["autoplay-source-id"]
+
+
+    @autoplay_source_id.setter
+    def autoplay_source_id(self, value: str) -> None:
+        self._properties["autoplay-source-id"] = value
+
+
+    @property
     def queue(self) -> list[Song]:
+        '''  The queue last stored to disk for this guild. '''
         return self._properties["queue"]
 
 

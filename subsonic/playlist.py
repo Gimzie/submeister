@@ -47,7 +47,7 @@ class Playlist():
 
         output = ""
 
-        if days > 0: output += f"{days:02d}:"
+        if days > 0: output += f"{days:2d}:"
         if hours > 0: output += f"{hours:02d}:"
         output += f"{minutes:02d}:{seconds:02d}"
 

@@ -459,7 +459,18 @@ class MusicCog(commands.Cog):
                     return
                 
                 if (interaction.data["custom_id"] == "shuffle_button"):
+                    
+                    # Set the selected playlist as the autoplay source to shuffle from
+                    player = data.guild_data(interaction.guild_id).player
+                    player.autoplay_source = selected_playlist
 
+                    # And update the autoplay mode accordingly
+                    data.guild_properties(interaction.guild_id).autoplay_mode = data.AutoplayMode.PLAYLIST
+                    data.guild_properties(interaction.guild_id).autoplay_source_id = selected_playlist.playlist_id
+
+                    # Let the user know, and let autoplay handle playback
+                    await ui.SysMsg.set_autoplay_to_playlist(interaction, selected_playlist)
+                    await player.handle_autoplay(interaction)
                     return
 
             queue_button.callback = playlist_added

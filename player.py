@@ -10,7 +10,9 @@ import data
 import ui
 import util.discord
 
+from typing import cast
 from subsonic.song import Song
+from subsonic.playlist import Playlist
 import subsonic.backend as backend
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ _default_data: dict[str, any] = {
     "now-playing-channel": None,
     "now-playing-last-song": None,
     "queue": [],
+    "autoplay-source": None
 }
 
 class Player():
@@ -120,7 +123,7 @@ class Player():
 
 
     @queue.setter
-    def queue(self, value: list) -> None:
+    def queue(self, value: list[Song]) -> None:
         self._data["queue"] = value
 
 
@@ -155,6 +158,17 @@ class Player():
     @now_playing_last_song.setter
     def now_playing_last_song(self, song: Song) -> None:
         self._data["now-playing-last-song"] = song
+
+
+    @property
+    def autoplay_source(self) -> list[Song]:
+        ''' The current autoplay source. '''
+        return self._data["autoplay-source"]
+
+
+    @autoplay_source.setter
+    def autoplay_source(self, value: any) -> None:
+        self._data["autoplay-source"] = value
 
 
 
@@ -217,15 +231,17 @@ class Player():
     async def handle_autoplay(self, interaction: discord.Interaction, prev_song_id: str=None):
         ''' Handles populating the queue when autoplay is enabled '''
 
+        player = data.guild_data(interaction.guild_id).player
         autoplay_mode = data.guild_properties(interaction.guild_id).autoplay_mode
-        queue = data.guild_data(interaction.guild_id).player.queue
+        source_id = data.guild_properties(interaction.guild_id).autoplay_source_id
+        queue = player.queue
 
-        # If queue is notempty or autoplay is disabled, don't handle autoplay
+        # If queue is not empty or autoplay is disabled, don't handle autoplay
         if queue != [] or autoplay_mode is data.AutoplayMode.NONE:
             return
 
-        # If there was no previous song provided, we default back to selecting a random song
-        if prev_song_id is None:
+        # If there was no previous song provided for the similar mode, we default back to selecting a random song
+        if autoplay_mode is data.AutoplayMode.SIMILAR and prev_song_id is None:
             autoplay_mode = data.AutoplayMode.RANDOM
 
         songs = []
@@ -233,15 +249,27 @@ class Player():
         match autoplay_mode:
             case data.AutoplayMode.RANDOM:
                 songs = backend.get_random_songs(size=1)
+                songs[0].username = "Autoplay"
             case data.AutoplayMode.SIMILAR:
                 songs = backend.get_similar_songs(song_id=prev_song_id, count=1)
+                songs[0].username = "Autoplay (Similar)"
+            case data.AutoplayMode.PLAYLIST:
+
+                # If the autoplay playlist source has been exhausted, fill it again
+                if player.autoplay_source is None or cast(Playlist, player.autoplay_source).songs == []:
+                    player.autoplay_source = backend.get_playlist(source_id)
+
+                # Remove a random song from the playlist source and queue it up
+                autoplay_source = cast(Playlist, player.autoplay_source)
+                songs.append(autoplay_source.songs.pop(random.randrange(len(autoplay_source.songs))))
+                songs[0].username = f"Autoplay ({autoplay_source.name})"
+
 
         # If there's no match, throw an error
         if len(songs) == 0:
             await ui.ErrMsg.msg(interaction, "Failed to obtain a song for autoplay.")
             return
         
-        songs[0].username = "Autoplay"
         self.queue.append(songs[0])
 
         # Fetch the cover art in advance
