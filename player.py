@@ -421,9 +421,15 @@ class Player():
         async def update_loop() -> None:
             while self.current_song is not None:
                 try:
-                    await asyncio.sleep(4)
+                    await asyncio.sleep(6)
                     if not self.paused:
                         await self.update_now_playing()
+
+                except discord.HTTPException as e:
+                    # The authorization token expires after a while; so create a new message
+                    await self.delete_now_playing()
+                    await self.update_now_playing(force_create=True)
+
                 except Exception as e:
                     logger.warning(f"{self.guild_id}: Ignoring exception in the now-playing update task: {e}")
 
