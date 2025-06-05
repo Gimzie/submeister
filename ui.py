@@ -48,6 +48,12 @@ class SysMsg:
 
 
     @staticmethod
+    async def no_track_playing(interaction: discord.Interaction) -> None:
+        ''' Sends a message indicating there is no track currently playing '''
+        await __class__.msg(interaction, "No track is currently playing")
+
+
+    @staticmethod
     async def disconnected(interaction: discord.Interaction) -> None:
         ''' Sends a message indicating the bot disconnected from voice channel '''
         await __class__.msg(interaction, "Disconnected from voice channel")

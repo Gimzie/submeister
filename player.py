@@ -308,6 +308,9 @@ class Player():
         # If the queue is empty, playback has ended; we should let the user know
         await ui.SysMsg.playback_ended(interaction)
 
+        # Also update the current player information
+        self.current_song = None
+
 
     async def skip_track(self, voice_client: discord.VoiceClient) -> None:
         ''' Skip the current track. '''
@@ -352,6 +355,14 @@ class Player():
         # Update the now-playing channel using the interaction, if one is provided
         if interaction is not None:
             self.now_playing_channel = interaction.channel
+
+        # If there is no song currently playing, let the user know
+        if self.current_song is None:
+            if interaction is not None:
+                await ui.SysMsg.no_track_playing(interaction)
+            else:
+                logger.error("There is no track currently playing, and no interaction available to let the user know.")
+            return
 
         # If the now-playing channel is somehow not stored, but we have a message, copy it from the message
         if self.now_playing_channel is None and self.now_playing_message is not None:
