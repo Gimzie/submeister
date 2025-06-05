@@ -394,13 +394,8 @@ class Player():
                 or self.current_song.song_id != self.now_playing_last_song.song_id):
             kwargs["attachments"] = [ui.get_thumbnail(cover_art)]
 
-        # We can force create a message as long as we have the channel to create it in
-        if force_create:
-            await self.delete_now_playing()
-            self.now_playing_message = await self.now_playing_channel.send(**kwargs)
-
         # If an interaction was passed, assume that we want to respond to it and make it the new message to update
-        elif interaction is not None:
+        if interaction is not None and not force_create:
 
             # Defer the interaction if it hasn't been deferred yet, and delete the last message
             if not interaction.response.is_done():
@@ -413,23 +408,27 @@ class Player():
             # Update the now-playing message
             self.now_playing_message = await interaction.edit_original_response(**kwargs)
 
+        # We can force create a message as long as we have the channel to create it in
+        elif force_create or self.now_playing_message is None:
+            await self.delete_now_playing()
+            self.now_playing_message = await self.now_playing_channel.send(**kwargs)
+
         else: # Otherwise, just edit the existing message
             await self.now_playing_message.edit(**kwargs)
 
 
         # Start a task to update the now-playing message on a time interval
         async def update_loop() -> None:
-            
-            # Prevent more than one instance of the update loop from running
-            if asyncio.current_task() is not self.now_playing_update_task:
-                return
-            
             while self.current_song is not None:
-                await asyncio.sleep(4)
-                if not self.paused:
-                    await self.update_now_playing()
+                try:
+                    await asyncio.sleep(4)
+                    if not self.paused:
+                        await self.update_now_playing()
+                except Exception as e:
+                    logger.warning(f"{self.guild_id}: Ignoring exception in the now-playing update task: {e}")
 
             self.now_playing_update_task = None
+            return
 
 
         if self.now_playing_update_task is None:
