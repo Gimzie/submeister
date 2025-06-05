@@ -10,6 +10,7 @@ import pickle
 
 from enum import Enum
 from typing import Final
+from typing import Any
 
 from subsonic.song import Song
 from player import Player
@@ -17,7 +18,7 @@ from player import Player
 logger = logging.getLogger(__name__)
 
 # Guild data
-_default_data: dict[str, any] = {
+_default_data: dict[str, Any] = {
     "player": None,
 }
 
@@ -81,7 +82,7 @@ class AutoplayMode(Enum):
     PLAYLIST: Final[int] = 3
 
 
-_default_properties: dict[str, any] = {
+_default_properties: dict[str, Any] = {
     "queue": None,
     "autoplay-mode": AutoplayMode.NONE,
     "autoplay-source-id": ""
@@ -170,7 +171,17 @@ def load_guild_properties_from_disk() -> None:
 
     with open("guild_properties.pickle", "rb") as file:
         try:
-            _guild_property_instances.update(pickle.load(file))
+            loaded: dict[int, GuildProperties] = pickle.load(file)
+            
+            # Ensure only currently-valid keys are updated, and otherwise set defaults
+            for guild_id, props in loaded.items():
+                
+                _guild_property_instances[guild_id] = GuildProperties()
+
+                for key in _default_properties:
+                    if key in props._properties:
+                        _guild_property_instances[guild_id]._properties[key] = props._properties[key]
+
             logger.info("Guild properties loaded successfully.")
         except pickle.UnpicklingError as err:
             logger.error("Failed to load guild properties from disk.", exc_info=err)
