@@ -249,7 +249,7 @@ class Player():
         match autoplay_mode:
             case data.AutoplayMode.RANDOM:
                 songs = backend.get_random_songs(size=1)
-                songs[0].username = "Autoplay"
+                songs[0].username = "Autoplay (Random)"
             case data.AutoplayMode.SIMILAR:
                 songs = backend.get_similar_songs(song_id=prev_song_id, count=1)
                 songs[0].username = "Autoplay (Similar)"
