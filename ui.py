@@ -7,6 +7,7 @@ import data
 import logging
 import math
 
+from typing import Tuple
 from subsonic.song import Song
 from subsonic.playlist import Playlist
 import subsonic.backend as backend
@@ -163,6 +164,31 @@ def get_thumbnail(thumbnail_path: str) -> discord.File:
         else:
             return discord.utils.MISSING
 
+def truncate(string: str, length: int):
+    ''' Truncates a string to a given length. '''
+    if len(string) <= length:
+        return string
+    if length <= 3:
+        return "..."
+    return string[:length - 3] + "..."
+
+def balance_strings(max_length: int, str1: str, str2: str) -> Tuple[str, str]:
+    ''' Balances two strings to a max length, where the first string is given priority. '''
+
+    total_length = len(str1) + len(str2)
+    length_over = total_length - max_length
+
+    # If both strings combined are under the max length, no balancing is needed
+    if length_over <= 0:
+        return (str1, str2)
+    
+    # At minimum, 75% of the first string should be shown, and 25% of the second string
+    min_shown_str1 = round(max_length * 0.75)
+
+    str1_share = max(min_shown_str1, int((len(str1) / total_length) * max_length))
+    str2_share = max_length - str1_share
+
+    return truncate(str1, str1_share), truncate(str2, str2_share)
 
 
 # Methods for parsing data to Discord structures
@@ -175,22 +201,12 @@ def parse_search_as_track_selection_embed(results: list[Song], query: str, page_
     for song in results:
 
         # Trim displayed tags to fit neatly within the embed
-        tr_title = song.title
-        tr_artist = song.artist
-        tr_album = (song.album[:68] + "...") if len(song.album) > 68 else song.album
-
-        # Only trim the longest tag on the first line
-        top_str_length = len(song.title + " - " + song.artist)
-        if top_str_length > 71:
-            
-            if tr_title > tr_artist:
-                tr_title = song.title[:(68 - top_str_length)] + '...'
-            else:
-                tr_artist = song.artist[:(68 - top_str_length)] + '...'
+        tr_title, tr_artist = balance_strings(70, song.title, song.artist)
+        tr_album = truncate(song.album, 60)
 
         # Add each of the results to our output string
         options_str += f"**{tr_title}** - *{tr_artist}* \n*{tr_album}* ({song.duration_printable})\n\n"
-
+    
     # Return an embed that displays our output string
     embed = discord.Embed(color=discord.Color.orange(), title=f"Results for: {query}", description=options_str)
     embed.set_footer(text=f"Current page: {page_num}")
@@ -202,7 +218,7 @@ def parse_search_as_track_selection_options(results: list[Song]) -> list[discord
 
     select_options = []
     for i, song in enumerate(results):
-        select_option = discord.SelectOption(label=f"{song.title}", description=f"by {song.artist}", value=i)
+        select_option = discord.SelectOption(label=f"{truncate(song.title, 50)}", description=f"by {truncate(song.artist, 50)}", value=i)
         select_options.append(select_option)
 
     return select_options
@@ -217,7 +233,7 @@ def parse_playlists_as_playlist_selection_embed(results: list[Playlist], page_nu
     for playlist in results:
 
         # Trim displayed fields to fit neatly within the embed
-        pl_name = (playlist.name[:68] + "...") if len(playlist.name) > 68 else playlist.name
+        pl_name = truncate(playlist.name, 70)
 
         # Add each result to our output string
         options_str += f"**{pl_name}** ({playlist.duration_printable})\n{playlist.song_count} tracks\n\n"
@@ -233,7 +249,7 @@ def parse_playlists_as_playlist_selection_options(results: list[Playlist]) -> li
 
     select_options = []
     for i, playlist in enumerate(results):
-        select_option = discord.SelectOption(label=f"{playlist.name}", description=f"{playlist.song_count} tracks", value=i)
+        select_option = discord.SelectOption(label=f"{truncate(playlist.name, 50)}", description=f"{playlist.song_count} tracks", value=i)
         select_options.append(select_option)
 
     return select_options
@@ -245,7 +261,10 @@ def parse_queue_as_embed(queue: list[Song], page_num: int, num_per_page: int) ->
     desc = ""
 
     for i, song in enumerate(queue):
-        desc += f"{i+1+((page_num-1)*num_per_page)}. **{song.title}** - *{song.artist}*\n{song.album} ({song.duration_printable})\n\n"
+        tr_title, tr_artist = balance_strings(60, song.title, song.artist)
+        tr_album = truncate(tr_album, 50)
+
+        desc += f"{i+1+((page_num-1)*num_per_page)}. **{tr_title}** - *{tr_artist}*\n{tr_album} ({song.duration_printable})\n\n"
 
     embed = discord.Embed(color=discord.Color.orange(), title="Queue", description=desc)
     embed.set_footer(text=f"Current page: {page_num}")
