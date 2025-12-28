@@ -2,8 +2,8 @@
 A powerful Discord bot that streams music from your personal Subsonic server.
 
 ##  Features
-- Full playback support for any Subsonic API-compatible server
-- Dynamically updating now-playing widget which prevents get buried by messages
+- Full playback support for any Subsonic API-compatible server (Navidrome, Nextcloud Music, etc.)
+- Dynamically updating now-playing widget which prevents getting buried by messages
 - Searching for and queuing albums (soon) & playlists from the server
 - Autoplay support, supporting random & similar modes, as well as sourcing from albums or playlists
 
