@@ -2,3 +2,4 @@ discord
 pynacl
 python-dotenv
 requests
+davey
